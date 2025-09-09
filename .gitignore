@@ -1,0 +1,49 @@
+# ---------------------------
+# Python
+# ---------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ---------------------------
+# Virtual Environment
+# ---------------------------
+# If your venv folder is named 'ai-agent', 'venv', or 'env'
+ai-agent/
+venv/
+env/
+
+# ---------------------------
+# Distribution / packaging
+# ---------------------------
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# ---------------------------
+# IDEs / Editors
+# ---------------------------
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ---------------------------
+# OS / System Files
+# ---------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------------------------
+# Logs / temp files
+# ---------------------------
+*.log
+*.tmp
+
+# ---------------------------
+# dotenv / secrets
+# ---------------------------
+.env
