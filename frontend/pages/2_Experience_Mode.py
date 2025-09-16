@@ -8,6 +8,8 @@ st.title("Teach Mode Interview")
 resume_file = st.file_uploader("Upload your Resume (PDF/TXT)", type=["pdf", "txt"])
 jd_file = st.file_uploader("Upload the Job Description (PDF/TXT)", type=["pdf", "txt"])
 
+BACKEND_URL = "https://questai-backend.onrender.com"
+
 def extract_text(file):
     if file is None:
         return ""
@@ -28,16 +30,17 @@ if st.button("Start Teach Mode Interview"):
     if not resume_text or not jd_text:
         st.error("Please upload both resume and JD.")
     else:
-        res = requests.post("http://127.0.0.1:8000/start_interview", json={
-        "resume_text": resume_text,
-        "jd_text": jd_text,
-        "mode": "experience",
-        "user_name": "Candidate"
+
+        res = requests.post(f"{BACKEND_URL}/start_interview", json={
+            "resume_text": resume_text,
+            "jd_text": jd_text,
+            "mode": "experience",
+            "user_name": "Candidate"
         })
         data = res.json()
         st.session_state.session_id = data["session_id"]
-        st.session_state.current_question = data["first_question"]
-        st.session_state.chat_history = [("assistant", data["first_question"])]
+        st.session_state.current_question = data["question"]
+        st.session_state.chat_history = [("assistant", data["question"])]
 
 # Display chat messages
 for role, msg in st.session_state.chat_history:
@@ -48,7 +51,7 @@ if "session_id" in st.session_state and st.session_state.current_question:
     if answer := st.chat_input("Your answer here..."):
         st.session_state.chat_history.append(("user", answer))
 
-        res = requests.post("http://127.0.0.1:8000/submit_answer", json={
+        res = requests.post(f"{BACKEND_URL}/submit_answer", json={
             "session_id": st.session_state.session_id,
             "question": st.session_state.current_question,
             "answer": answer

@@ -3,7 +3,7 @@ from app.agents.base_agent import BaseAgent
 class CodingAgent(BaseAgent):
     def __init__(self):
         system = (
-            "You are CodingAgent: an interviewer that ONLY asks and clarifies coding problems. "
+            "You are CodingAgent: an interviewer that ONLY asks and clarifies coding problems based on Data structures and algorithms. "
             "When asked to generate a problem, produce a clear statement, constraints, sample input/output, "
             "and indicate complexity expectations. Keep wording precise and unambiguous."
         )

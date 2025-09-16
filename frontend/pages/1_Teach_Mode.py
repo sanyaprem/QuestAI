@@ -28,7 +28,8 @@ if st.button("Start Teach Mode Interview"):
     if not resume_text or not jd_text:
         st.error("Please upload both resume and JD.")
     else:
-        res = requests.post("http://127.0.0.1:8000/start_interview", json={
+        BACKEND_URL = "https://questai-backend.onrender.com"
+        res = requests.post(f"{BACKEND_URL}/start_interview", json={
             "resume_text": resume_text,
             "jd_text": jd_text,
             "mode": "teach",
@@ -47,8 +48,9 @@ for role, msg in st.session_state.chat_history:
 if "session_id" in st.session_state and st.session_state.current_question:
     if answer := st.chat_input("Your answer here..."):
         st.session_state.chat_history.append(("user", answer))
+        BACKEND_URL = "https://questai-backend.onrender.com"
 
-        res = requests.post("http://127.0.0.1:8000/submit_answer", json={
+        res = requests.post(f"{BACKEND_URL}/submit_answer", json={
             "session_id": st.session_state.session_id,
             "question": st.session_state.current_question,
             "answer": answer
