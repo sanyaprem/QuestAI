@@ -8,6 +8,8 @@ st.title("Teach Mode Interview")
 resume_file = st.file_uploader("Upload your Resume (PDF/TXT)", type=["pdf", "txt"])
 jd_file = st.file_uploader("Upload the Job Description (PDF/TXT)", type=["pdf", "txt"])
 
+BACKEND_URL = "https://questai-backend-ga8s.onrender.com"
+
 def extract_text(file):
     if file is None:
         return ""
@@ -28,7 +30,7 @@ if st.button("Start Teach Mode Interview"):
     if not resume_text or not jd_text:
         st.error("Please upload both resume and JD.")
     else:
-        BACKEND_URL = "https://questai-backend.onrender.com"
+
         res = requests.post(f"{BACKEND_URL}/start_interview", json={
             "resume_text": resume_text,
             "jd_text": jd_text,

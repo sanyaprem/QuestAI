@@ -8,7 +8,7 @@ st.title("Teach Mode Interview")
 resume_file = st.file_uploader("Upload your Resume (PDF/TXT)", type=["pdf", "txt"])
 jd_file = st.file_uploader("Upload the Job Description (PDF/TXT)", type=["pdf", "txt"])
 
-BACKEND_URL = "https://questai-backend.onrender.com"
+BACKEND_URL = "https://questai-backend-ga8s.onrender.com"
 
 def extract_text(file):
     if file is None:
