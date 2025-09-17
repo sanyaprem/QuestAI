@@ -14,7 +14,15 @@ load_dotenv()
 #     api_key= os.getenv("api_key")
 
 # )
+# from fastapi.middleware.cors import CORSMiddleware
 
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],  # or restrict to your frontend Render URL
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 app = FastAPI(
     title="QuestAI Interview Agent",

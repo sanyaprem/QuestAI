@@ -37,7 +37,11 @@ if st.button("Start Teach Mode Interview"):
             "mode": "teach",
             "user_name": "Candidate"
         })
+        
+        print("STATUS:", res.status_code)
+        print("RAW RESPONSE:", res.text)  # Debug line
         data = res.json()
+
         st.session_state.session_id = data["session_id"]
         st.session_state.current_question = data["question"]
         st.session_state.chat_history = [("assistant", data["question"])]
@@ -50,7 +54,6 @@ for role, msg in st.session_state.chat_history:
 if "session_id" in st.session_state and st.session_state.current_question:
     if answer := st.chat_input("Your answer here..."):
         st.session_state.chat_history.append(("user", answer))
-        BACKEND_URL = "https://questai-backend.onrender.com"
 
         res = requests.post(f"{BACKEND_URL}/submit_answer", json={
             "session_id": st.session_state.session_id,
