@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 from PyPDF2 import PdfReader
 
-st.title("Teach Mode Interview")
+st.title("Experience Mode Interview")
 
 # Upload files
 resume_file = st.file_uploader("Upload your Resume (PDF/TXT)", type=["pdf", "txt"])
@@ -23,7 +23,7 @@ def extract_text(file):
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-if st.button("Start Teach Mode Interview"):
+if st.button("Start Experience Mode Interview"):
     resume_text = extract_text(resume_file)
     jd_text = extract_text(jd_file)
 
