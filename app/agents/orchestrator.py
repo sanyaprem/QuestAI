@@ -35,7 +35,7 @@ async def create_session(resume_text: str, jd_text: str, mode: str = "experience
     followups = await coding_agent.generate_followups(coding_q)
 
     # Generate resume and behavioral questions
-    resume_qs = await resume_agent.generate_questions(resume_text=resume_text, jd_text=jd_text, count=3)
+    resume_qs = await resume_agent.generate_questions(resume_text=resume_text, jd_text=jd_text)
     behavior_qs = await behavior_agent.generate_questions(count=5)
 
     # Store session
