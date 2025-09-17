@@ -20,7 +20,7 @@ load_dotenv()
 model_client = OpenAIChatCompletionClient(
      base_url="https://openrouter.ai/api/v1",
      model="deepseek/deepseek-chat-v3.1:free",
-     api_key = os.getenv("openrouter_api_key"),
+     api_key = os.getenv("api_key"),
      model_info={
          "family":'deepseek',
          "vision" :True,
