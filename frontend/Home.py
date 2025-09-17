@@ -1,21 +1,19 @@
 import streamlit as st
 
-st.set_page_config(page_title="QuestAI", layout="centered")
+st.set_page_config(page_title="QuestAI - Interview Assistant", page_icon="🤖", layout="wide")
 
-st.title("🤖 QuestAI: AI Interview Assistant")
+st.title("🤖 QuestAI")
+st.subheader("Your AI-powered Interview Partner")
+
 st.markdown("""
 Welcome to **QuestAI**!  
-Choose a mode to practice your interview:
-- **Teach Mode** 🧑‍🏫 → Guided practice with hints & explanations  
-- **Experience Mode** 🎯 → Real interview simulation with scores only
+This platform simulates interviews with **multi-agent AI**.
+
+You can try two modes:
+
+- 🎓 **Teach Mode** – Guided practice with retries and coaching after feedback.  
+- 🧑‍💼 **Experience Mode** – Realistic mock interview simulation.  
+- 📊 **Reports** – View a structured report of your performance.  
+
+👉 Use the left sidebar to navigate between modes.
 """)
-
-col1, col2 = st.columns(2)
-
-with col1:
-    if st.button("Teach Mode 🧑‍🏫"):
-        st.switch_page("pages/1_Teach_Mode.py")
-
-with col2:
-    if st.button("Experience Mode 🎯"):
-        st.switch_page("pages/2_Experience_Mode.py")

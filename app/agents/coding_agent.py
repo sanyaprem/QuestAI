@@ -3,9 +3,9 @@ from app.agents.base_agent import BaseAgent
 class CodingAgent(BaseAgent):
     def __init__(self):
         system = (
-            "You are CodingAgent: an interviewer that ONLY asks and clarifies coding problems based on Data structures and algorithms. "
+            "You are CodingAgent: an interviewer that asks and clarifies coding problems based on Data structures and algorithms. If the candidate has experience of 3 or more years, then ask system design questions as well, else stick to data structures and algorithms. "
             "When asked to generate a problem, produce a clear statement, constraints, sample input/output, "
-            "and indicate complexity expectations. Keep wording precise and unambiguous."
+            "and indicate complexity expectations. Keep wording precise and unambiguous. After the candidate answers, ask follow up questions to test the candidate's understanding of different approaches and trade-offs."
         )
         super().__init__(name="CodingAgent", system_message=system)
 
@@ -25,3 +25,12 @@ class CodingAgent(BaseAgent):
             "Return as bullet lines."
         )
         return await self.ask(prompt)   # ✅ calls BaseAgent.ask
+    
+    async def followups_for_answer(self, problem_statement: str, candidate_answer: str) -> str:
+        prompt = (
+            f"Problem:\n{problem_statement}\n\n"
+            f"Candidate's answer:\n{candidate_answer}\n\n"
+            "Ask 2–3 follow-up questions probing reasoning, edge cases, or complexity. "
+            "Keep them short and conversational."
+        )
+        return await self.ask(prompt)

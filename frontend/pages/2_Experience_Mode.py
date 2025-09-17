@@ -30,14 +30,17 @@ if st.button("Start Experience Mode Interview"):
     if not resume_text or not jd_text:
         st.error("Please upload both resume and JD.")
     else:
-
         res = requests.post(f"{BACKEND_URL}/start_interview", json={
             "resume_text": resume_text,
             "jd_text": jd_text,
             "mode": "experience",
             "user_name": "Candidate"
         })
+        
+        print("STATUS:", res.status_code)
+        print("RAW RESPONSE:", res.text)  # Debug line
         data = res.json()
+
         st.session_state.session_id = data["session_id"]
         st.session_state.current_question = data["question"]
         st.session_state.chat_history = [("assistant", data["question"])]
@@ -47,8 +50,9 @@ for role, msg in st.session_state.chat_history:
     with st.chat_message(role):
         st.write(msg)
 
+# Capture answers
 if "session_id" in st.session_state and st.session_state.current_question:
-    if answer := st.chat_input("Your answer here..."):
+    if answer := st.chat_input("Your answer here...", key="experience_mode_input"):
         st.session_state.chat_history.append(("user", answer))
 
         res = requests.post(f"{BACKEND_URL}/submit_answer", json={
@@ -60,10 +64,22 @@ if "session_id" in st.session_state and st.session_state.current_question:
         evaluation = res["evaluation"]
         next_q = res["next_question"]
 
+        # Show evaluation feedback
         st.session_state.chat_history.append(("assistant", f"Evaluation: {evaluation}"))
-        if next_q:
-            st.session_state.chat_history.append(("assistant", next_q))
-            st.session_state.current_question = next_q
+
+        # If no answer was provided → skip to next question, unless it was the last
+        if not answer.strip():
+            if next_q:
+                st.session_state.current_question = next_q
+                st.session_state.chat_history.append(("assistant", f"Okay, let's try the next one:\n\n{next_q}"))
+            else:
+                st.session_state.chat_history.append(("assistant", "Interview Completed ✅"))
+                st.session_state.current_question = None
         else:
-            st.session_state.chat_history.append(("assistant", "Interview Completed ✅"))
-            st.session_state.current_question = None
+            # Normal flow
+            if next_q:
+                st.session_state.current_question = next_q
+                st.session_state.chat_history.append(("assistant", next_q))
+            else:
+                st.session_state.chat_history.append(("assistant", "Interview Completed ✅"))
+                st.session_state.current_question = None
