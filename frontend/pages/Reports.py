@@ -1,7 +1,8 @@
 import streamlit as st
 import requests
 
-BACKEND_URL = "https://questai-backend-ga8s.onrender.com"
+BACKEND_URL ="https://questai-backend-ga8s.onrender.com"
+# BACKEND_URL = "http://127.0.0.1:8000"
 
 st.title("📊 Interview Reports")
 

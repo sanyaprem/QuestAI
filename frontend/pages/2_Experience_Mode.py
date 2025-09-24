@@ -8,7 +8,8 @@ st.title("Experience Mode Interview")
 resume_file = st.file_uploader("Upload your Resume (PDF/TXT)", type=["pdf", "txt"])
 jd_file = st.file_uploader("Upload the Job Description (PDF/TXT)", type=["pdf", "txt"])
 
-BACKEND_URL = "https://questai-backend-ga8s.onrender.com"
+BACKEND_URL ="https://questai-backend-ga8s.onrender.com"
+# BACKEND_URL = "http://127.0.0.1:8000"
 
 def extract_text(file):
     if file is None:
@@ -42,8 +43,8 @@ if st.button("Start Experience Mode Interview"):
         data = res.json()
 
         st.session_state.session_id = data["session_id"]
-        st.session_state.current_question = data["question"]
-        st.session_state.chat_history = [("assistant", data["question"])]
+        st.session_state.current_question = data["first_question"]
+        st.session_state.chat_history = [("assistant", data["first_question"])]
 
 # Display chat messages
 for role, msg in st.session_state.chat_history:

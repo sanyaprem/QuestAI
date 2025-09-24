@@ -4,7 +4,8 @@ from PyPDF2 import PdfReader
 
 st.title("Teach Mode Interview")
 
-BACKEND_URL = "https://questai-backend-ga8s.onrender.com"
+BACKEND_URL ="https://questai-backend-ga8s.onrender.com"
+# BACKEND_URL = "http://127.0.0.1:8000"
 
 # --- Helper to extract text from uploaded file ---
 def extract_text(file):
@@ -49,8 +50,8 @@ if st.button("Start Teach Mode Interview"):
         if res.status_code == 200:
             data = res.json()
             st.session_state.session_id = data["session_id"]
-            st.session_state.current_question = data["question"]
-            st.session_state.chat_history = [("assistant", data["question"])]
+            st.session_state.current_question = data["first_question"]
+            st.session_state.chat_history = [("assistant", data["first_question"])]
         else:
             st.error("Failed to start interview.")
 
