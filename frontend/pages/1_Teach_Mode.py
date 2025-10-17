@@ -4,8 +4,8 @@ from PyPDF2 import PdfReader
 
 st.title("Teach Mode Interview")
 
-BACKEND_URL ="https://questai-backend-ga8s.onrender.com"
-# BACKEND_URL = "http://127.0.0.1:8000"
+# BACKEND_URL ="https://questai-backend-ga8s.onrender.com"
+BACKEND_URL = "http://127.0.0.1:8000"
 
 # --- Helper to extract text from uploaded file ---
 def extract_text(file):

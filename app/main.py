@@ -80,6 +80,7 @@ async def api_start_interview(req: StartRequest):
         mode=req.mode,
         user_name=req.user_name
     )
+    print("hello")
     return result
 
 @app.post("/submit_answer")

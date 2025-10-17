@@ -1,49 +1,74 @@
-# ---------------------------
 # Python
-# ---------------------------
 __pycache__/
 *.py[cod]
 *$py.class
-
-# ---------------------------
-# Virtual Environment
-# ---------------------------
-# If your venv folder is named 'ai-agent', 'venv', or 'env'
-ai-agent/
-venv/
-env/
-
-# ---------------------------
-# Distribution / packaging
-# ---------------------------
-*.egg
-*.egg-info/
-dist/
+*.so
+.Python
 build/
-*.whl
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# ---------------------------
-# IDEs / Editors
-# ---------------------------
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+ai-agent/
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+quest_ai.log
+frontend.log
+backend.log
+frontend_server.log
+
+# IDE
 .vscode/
 .idea/
-*.sublime-project
-*.sublime-workspace
-
-# ---------------------------
-# OS / System Files
-# ---------------------------
+*.swp
+*.swo
+*~
 .DS_Store
-Thumbs.db
-desktop.ini
 
-# ---------------------------
-# Logs / temp files
-# ---------------------------
-*.log
+# Streamlit
+.streamlit/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Temporary files
+tmp/
+temp/
 *.tmp
 
-# ---------------------------
-# dotenv / secrets
-# ---------------------------
-.env
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+Thumbs.db
+.DS_Store
