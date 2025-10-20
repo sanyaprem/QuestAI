@@ -4,6 +4,7 @@ import requests
 import sys
 from pathlib import Path
 from PyPDF2 import PdfReader
+from config import BACKEND_URL
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 st.title("💼 Experience Mode Interview")
 
-BACKEND_URL = "http://127.0.0.1:8000"
+
 
 logger.info("=" * 70)
 logger.info("Experience Mode page loaded")

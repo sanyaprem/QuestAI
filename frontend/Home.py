@@ -55,7 +55,8 @@ st.subheader("Backend Status")
 
 try:
     import requests
-    BACKEND_URL = st.text_input("Backend URL", value="http://127.0.0.1:8000")
+    from config import BACKEND_URL as DEFAULT_BACKEND_URL
+    BACKEND_URL = st.text_input("Backend URL", value=DEFAULT_BACKEND_URL)
     
     if st.button("Check Backend"):
         logger.info(f"Checking backend at: {BACKEND_URL}")

@@ -3,6 +3,7 @@ import streamlit as st
 import requests
 import sys
 from pathlib import Path
+from config import BACKEND_URL
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -14,7 +15,7 @@ import logging
 setup_frontend_logging()
 logger = logging.getLogger(__name__)
 
-BACKEND_URL = "http://127.0.0.1:8000"
+# BACKEND_URL = "http://127.0.0.1:8000"
 
 st.title("📊 Interview Reports")
 

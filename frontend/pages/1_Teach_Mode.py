@@ -9,6 +9,7 @@ from PyPDF2 import PdfReader
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from logging_config import setup_frontend_logging
+from config import BACKEND_URL
 import logging
 
 # Setup logging
@@ -17,14 +18,9 @@ logger = logging.getLogger(__name__)
 
 st.title("🎓 Teach Mode Interview")
 
-BACKEND_URL = "http://127.0.0.1:8000"
-
 logger.info("=" * 70)
-logger.info("Teach Mode page loaded")
-logger.info("=" * 70)
-
-
 logger.info(f"Using backend: {BACKEND_URL}")
+logger.info("=" * 70)
 
 # --- Helper to extract text from uploaded file ---
 def extract_text(file):
@@ -64,10 +60,6 @@ if "current_question" not in st.session_state:
     st.session_state.current_question = None
     logger.info("Initialized current_question")
 
-if "retry_mode" not in st.session_state:
-    st.session_state.retry_mode = False
-    logger.info("Initialized retry_mode")
-
 # --- File upload ---
 logger.info("Rendering file upload section")
 resume_file = st.file_uploader("📄 Upload your Resume (PDF/TXT)", type=["pdf", "txt"])
@@ -89,6 +81,7 @@ if st.button("🚀 Start Teach Mode Interview"):
         
         with st.spinner("Starting interview... Please wait."):
             try:
+                logger.info(f"Sending request to: {BACKEND_URL}/start_interview")
                 res = requests.post(f"{BACKEND_URL}/start_interview", json={
                     "resume_text": resume_text,
                     "jd_text": jd_text,
@@ -107,8 +100,15 @@ if st.button("🚀 Start Teach Mode Interview"):
                     st.rerun()
                 else:
                     logger.error(f"Failed to start interview: {res.status_code}")
+                    logger.error(f"Response: {res.text}")
                     st.error(f"❌ Failed to start interview: {res.status_code}")
             
+            except requests.exceptions.Timeout:
+                logger.error("Request timeout")
+                st.error("❌ Request timed out. Please try again.")
+            except requests.exceptions.ConnectionError:
+                logger.error(f"Cannot connect to backend: {BACKEND_URL}")
+                st.error(f"❌ Cannot connect to backend. Please check if it's running.")
             except Exception as e:
                 logger.error(f"Error starting interview: {str(e)}", exc_info=True)
                 st.error(f"❌ Error: {str(e)}")
@@ -130,6 +130,7 @@ if st.session_state.session_id and st.session_state.current_question:
         
         with st.spinner("Evaluating your answer..."):
             try:
+                logger.info(f"Submitting answer to: {BACKEND_URL}/submit_answer")
                 res = requests.post(f"{BACKEND_URL}/submit_answer", json={
                     "session_id": st.session_state.session_id,
                     "question": st.session_state.current_question,

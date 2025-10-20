@@ -4,6 +4,7 @@ import requests
 import sys
 from pathlib import Path
 from PyPDF2 import PdfReader
+from config import BACKEND_URL
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -20,7 +21,7 @@ st.set_page_config(page_title="Resume–Job Match Analyzer", page_icon="📊", l
 st.title("📊 Resume–Job Match Analyzer")
 st.markdown("Upload your resume and the job description to check how well you match the role.")
 
-BACKEND_URL = "http://127.0.0.1:8000"
+# BACKEND_URL = "http://127.0.0.1:8000"
 
 logger.info("=" * 70)
 logger.info("Match Score page loaded")
