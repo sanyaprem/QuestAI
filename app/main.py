@@ -1,37 +1,27 @@
-from fastapi import FastAPI
-from typing import Optional
-from pydantic import BaseModel
-# from autogen_agentchat.agents import AssistantAgent
-from autogen_ext.models.openai import OpenAIChatCompletionClient
-from dotenv import load_dotenv
+# app/main.py
+import logging
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import os
+from typing import Optional
+
+from app.config import Config, ModelClientFactory
+from app.models import StartRequest, SubmitAnswerReq, MatchRequest
 from app.agents.orchestrator import create_session, submit_answer, generate_report
 from app.agents.evaluator_agent import EvaluatorAgent
 
-load_dotenv()
+logger = logging.getLogger(__name__)
 
-# model_client = OpenAIChatCompletionClient(
-#     model="gemini-1.5-flash-8b",
-#     api_key=os.getenv("gemini_api_key")
-
-# )
-# from fastapi.middleware.cors import CORSMiddleware
-
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],  # or restrict to your frontend Render URL
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+# ============================================
+# FASTAPI APPLICATION
+# ============================================
 
 app = FastAPI(
     title="QuestAI Interview Agent",
     description="Multi-agent interview simulation with Teach & Experience modes",
-    version="0.1.0"
+    version="2.0.0"
 )
 
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # ⚠️ tighten this in production
@@ -40,78 +30,188 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# agent = AssistantAgent(
-#     name="QuestAI",
-#     system_message="You are QuestAI, an interview assistant helping users practice technical interviews.",
-#     model_client=model_client
+logger.info("=" * 70)
+logger.info("🚀 FastAPI application initialized")
+logger.info("=" * 70)
 
-# -----------------------------
-# Request Models
-# -----------------------------
-class StartRequest(BaseModel):
-    resume_text: str
-    jd_text: str
-    mode: str  # 'teach' or 'experience'
-    user_name: Optional[str] = "Candidate"
 
-class SubmitAnswerReq(BaseModel):
-    session_id: str
-    question: str
-    answer: str
-    question_meta: dict = {}
+# ============================================
+# STARTUP & SHUTDOWN EVENTS
+# ============================================
 
-class MatchRequest(BaseModel):
-    resume_text: str
-    jd_text: str
+@app.on_event("startup")
+async def startup_event():
+    """Startup event handler"""
+    logger.info("=" * 70)
+    logger.info("🚀 QuestAI Backend Starting")
+    logger.info(f"Version: {app.version}")
+    logger.info(f"Current Provider: {Config.CURRENT_PROVIDER}")
+    logger.info("=" * 70)
 
-# -----------------------------
-# Endpoints
-# -----------------------------
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Shutdown event handler"""
+    logger.info("=" * 70)
+    logger.info("🛑 QuestAI Backend Shutting Down")
+    logger.info(f"Failover Count: {Config.FAILOVER_COUNT}")
+    logger.info("=" * 70)
+
+
+# ============================================
+# ENDPOINTS
+# ============================================
+
 @app.get("/")
 def root():
-    return {"message": "QuestAI backend is running."}
+    """Root endpoint"""
+    logger.info("GET / - Root endpoint accessed")
+    
+    return {
+        "message": "QuestAI backend is running.",
+        "version": app.version,
+        "current_provider": Config.CURRENT_PROVIDER,
+        "failover_count": Config.FAILOVER_COUNT
+    }
+
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint"""
+    logger.info("GET /health - Health check")
+    
+    return {
+        "status": "healthy",
+        "provider": Config.CURRENT_PROVIDER,
+        "failover_count": Config.FAILOVER_COUNT
+    }
+
+
+@app.get("/status")
+def get_status():
+    """Get API status and failover information"""
+    logger.info("GET /status - Status check")
+    
+    status = ModelClientFactory.get_status()
+    logger.debug(f"Status: {status}")
+    
+    return status
+
 
 @app.post("/start_interview")
 async def api_start_interview(req: StartRequest):
     """Start a new interview session."""
-    result = await create_session(
-        req.resume_text,
-        req.jd_text,
-        mode=req.mode,
-        user_name=req.user_name
-    )
-    return result
+    logger.info("=" * 70)
+    logger.info("POST /start_interview")
+    logger.info("=" * 70)
+    
+    req.log_request()
+    
+    try:
+        result = await create_session(
+            req.resume_text,
+            req.jd_text,
+            mode=req.mode,
+            user_name=req.user_name
+        )
+        
+        logger.info(f"✅ Interview started - Session: {result['session_id']}")
+        logger.info("=" * 70)
+        
+        return result
+    
+    except Exception as e:
+        logger.error(f"❌ Error starting interview: {str(e)}", exc_info=True)
+        logger.info("=" * 70)
+        
+        raise HTTPException(status_code=500, detail=f"Failed to start interview: {str(e)}")
+
 
 @app.post("/submit_answer")
 async def api_submit_answer(payload: SubmitAnswerReq):
     """Submit an answer and get evaluation + next question."""
-    res = await submit_answer(
-        payload.session_id,
-        payload.question,
-        payload.answer,
-        payload.question_meta
-    )
-    return res
+    logger.info("=" * 70)
+    logger.info("POST /submit_answer")
+    logger.info("=" * 70)
+    
+    payload.log_request()
+    
+    try:
+        res = await submit_answer(
+            payload.session_id,
+            payload.question,
+            payload.answer,
+            payload.question_meta
+        )
+        
+        if "error" in res:
+            logger.error(f"❌ Error: {res['error']}")
+            logger.info("=" * 70)
+            raise HTTPException(status_code=404, detail=res["error"])
+        
+        logger.info("✅ Answer submitted successfully")
+        logger.info("=" * 70)
+        
+        return res
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error submitting answer: {str(e)}", exc_info=True)
+        logger.info("=" * 70)
+        
+        raise HTTPException(status_code=500, detail=f"Failed to submit answer: {str(e)}")
+
 
 @app.get("/report")
 async def api_report(session_id: str):
     """Generate final interview report for a given session."""
-    rep = await generate_report(session_id)
-    return rep
+    logger.info("=" * 70)
+    logger.info("GET /report")
+    logger.info("=" * 70)
+    logger.info(f"Session: {session_id}")
+    
+    try:
+        rep = await generate_report(session_id)
+        
+        if "error" in rep:
+            logger.error(f"❌ Error: {rep['error']}")
+            logger.info("=" * 70)
+            raise HTTPException(status_code=404, detail=rep["error"])
+        
+        logger.info("✅ Report generated successfully")
+        logger.info("=" * 70)
+        
+        return rep
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error generating report: {str(e)}", exc_info=True)
+        logger.info("=" * 70)
+        
+        raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}")
+
 
 @app.post("/match_score")
 async def match_score(req: MatchRequest):
     """Check resume–job match percentage + strengths + gaps."""
+    logger.info("=" * 70)
+    logger.info("POST /match_score")
+    logger.info("=" * 70)
+    
+    req.log_request()
+    
     evaluator = EvaluatorAgent(mode="analysis")
 
     prompt = f"""
     Compare the following resume and job description.
 
     Resume:
-    {req.resume_text}
+    {req.resume_text[:1000]}
 
     Job Description:
-    {req.jd_text}
+    {req.jd_text[:1000]}
 
     Task:
     1. Give a match percentage (0-100%) that represents how well the resume fits the job.
@@ -126,14 +226,27 @@ async def match_score(req: MatchRequest):
     }}
     """
 
-    raw = await evaluator.ask(prompt)
-
-    import re, json
     try:
-        m = re.search(r"\{.*\}", raw, re.S)
-        parsed = json.loads(m.group(0)) if m else {"raw": raw}
-    except Exception:
-        parsed = {"match_percent": 0, "strengths": [], "gaps": [], "raw": raw}
+        raw = await evaluator.ask(prompt)
+        logger.debug(f"Raw match response: {raw[:200]}...")
+
+        import re, json
+        try:
+            m = re.search(r"\{.*\}", raw, re.S)
+            parsed = json.loads(m.group(0)) if m else {"raw": raw}
+            logger.info("✅ Match score calculated")
+        except Exception:
+            logger.warning("Failed to parse match response")
+            parsed = {"match_percent": 0, "strengths": [], "gaps": [], "raw": raw}
+
+        logger.info("=" * 70)
+        return parsed
+    
+    except Exception as e:
+        logger.error(f"❌ Error calculating match score: {str(e)}", exc_info=True)
+        logger.info("=" * 70)
+        
+        raise HTTPException(status_code=500, detail=f"Failed to calculate match: {str(e)}")
 
 
-    return parsed
+logger.info("✅ FastAPI routes configured")
