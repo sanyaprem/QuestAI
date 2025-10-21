@@ -77,3 +77,26 @@ except Exception as e:
     st.warning(f"Cannot check backend status: {e}")
 
 logger.info("Home page rendered successfully")
+
+# === MOCK MODE INDICATOR (NEW) ===
+if BACKEND_URL:
+    try:
+        response = requests.get(f"{BACKEND_URL}/health", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            
+            if data.get("mock_mode", False):
+                st.warning("""
+                🎭 **MOCK MODE ENABLED**
+                
+                The backend is running in mock mode with dummy data. 
+                No real API calls are being made - perfect for testing without using API tokens!
+                
+                To disable mock mode: Set `MOCK_MODE=false` in your `.env` file and restart the backend.
+                """)
+                logger.info("Backend is in mock mode")
+            else:
+                st.success("✅ Backend is using real AI models")
+                logger.info("Backend is using real AI")
+    except:
+        pass

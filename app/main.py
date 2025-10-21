@@ -75,6 +75,9 @@ def root():
     }
 
 
+# app/main.py
+# ... (keep all existing code, just update these endpoints) ...
+
 @app.get("/health")
 def health_check():
     """Health check endpoint"""
@@ -82,7 +85,8 @@ def health_check():
     
     return {
         "status": "healthy",
-        "provider": Config.CURRENT_PROVIDER,
+        "mock_mode": Config.MOCK_MODE,  # NEW
+        "provider": Config.CURRENT_PROVIDER if not Config.MOCK_MODE else "mock",  # NEW
         "failover_count": Config.FAILOVER_COUNT
     }
 
@@ -96,7 +100,6 @@ def get_status():
     logger.debug(f"Status: {status}")
     
     return status
-
 
 @app.post("/start_interview")
 async def api_start_interview(req: StartRequest):

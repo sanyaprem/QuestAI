@@ -363,6 +363,54 @@ async def main():
 asyncio.run(main())
 ```
 
+## 🎭 Mock Mode (Testing Without API Calls)
+
+QuestAI supports a **Mock Mode** for testing without consuming API tokens.
+
+### Enable Mock Mode
+
+**Method 1: Environment Variable**
+```bash
+# In .env file
+MOCK_MODE=true
+```
+
+**Method 2: Command Line**
+```bash
+# Linux/Mac
+export MOCK_MODE=true
+uvicorn app.main:app --reload
+
+# Windows PowerShell
+$env:MOCK_MODE = "true"
+uvicorn app.main:app --reload
+```
+
+### What Mock Mode Does
+
+- ✅ Uses pre-defined dummy questions
+- ✅ Generates random scores (6-10)
+- ✅ Returns mock evaluations
+- ✅ Creates sample reports
+- ✅ No API calls made
+- ✅ No API tokens consumed
+- ✅ Instant responses (no API latency)
+
+### When to Use Mock Mode
+
+- 🧪 **Testing new features** - Test UI/UX without API costs
+- 🎓 **Learning the codebase** - Understand flow without API limits
+- 🐛 **Debugging** - Isolate issues from API variability
+- 🚀 **Demo purposes** - Show functionality without API keys
+
+### Disable Mock Mode
+```bash
+# In .env file
+MOCK_MODE=false
+```
+
+Then restart the backend.
+
 ## 🎓 Learning Resources
 
 ### Understanding the Code
