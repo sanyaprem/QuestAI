@@ -289,7 +289,7 @@ if not st.session_state.session_id:
                                 "jd_text": jd_text,
                                 "mode": "teach",
                                 "user_name": "Candidate"
-                            }, timeout=60)
+                            }, timeout=180)
 
                             if res.status_code == 200:
                                 data = res.json()
@@ -409,7 +409,7 @@ if st.session_state.session_id and st.session_state.current_question:
                                 "session_id": st.session_state.session_id,
                                 "question": st.session_state.current_question,
                                 "answer": formatted_answer
-                            }, timeout=60).json()
+                            }, timeout=180).json()
                             
                             evaluation = res["evaluation"]
                             next_q = res.get("next_question")
@@ -465,7 +465,7 @@ if st.session_state.session_id and st.session_state.current_question:
                         "session_id": st.session_state.session_id,
                         "question": st.session_state.current_question,
                         "answer": "[Skipped - No answer provided]"
-                    }, timeout=60).json()
+                    }, timeout=180).json()
                     
                     next_q = res.get("next_question")
                     if next_q:
@@ -495,7 +495,7 @@ if st.session_state.session_id and st.session_state.current_question:
                         "session_id": st.session_state.session_id,
                         "question": st.session_state.current_question,
                         "answer": answer
-                    }, timeout=60).json()
+                    }, timeout=180).json()
                     
                     evaluation = res["evaluation"]
                     next_q = res.get("next_question")

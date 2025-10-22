@@ -1,36 +1,47 @@
 # app/agents/base_agent.py
+"""
+Enhanced BaseAgent with AutoGen best practices
+Supports both individual agents and group chat participation
+"""
 import asyncio
 import json
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, List, Dict
 from app.config import ModelClientFactory, Config
 
-# Import AssistantAgent
+# Import AutoGen components
 try:
     from autogen_agentchat.agents import AssistantAgent
+    from autogen_agentchat.base import Response
+    from autogen_agentchat.messages import ChatMessage, TextMessage
 except Exception:
     try:
         from autogen import AssistantAgent
     except Exception as e:
         raise ImportError("Could not import AssistantAgent.") from e
 
-# Create logger for this file
 logger = logging.getLogger(__name__)
 
 
 class BaseAgent:
     """
-    Base class for all interview agents.
-    Handles API calls with automatic failover and comprehensive logging.
+    Enhanced base class for all interview agents.
+    Supports both individual operation and group chat participation.
     """
     
-    def __init__(self, name: str, system_message: str):
+    def __init__(
+        self, 
+        name: str, 
+        system_message: str,
+        description: Optional[str] = None
+    ):
         """
-        Initialize a base agent.
+        Initialize a base agent with AutoGen capabilities.
         
         Args:
             name: Agent name (e.g., "CodingAgent")
             system_message: Instructions for the agent
+            description: Brief description for group chat context
         """
         logger.info("=" * 60)
         logger.info(f"🤖 Creating {name}")
@@ -40,23 +51,31 @@ class BaseAgent:
         # Get the current model client
         model_client = ModelClientFactory.get_client()
         
-        # Create the Autogen agent
+        # Create the Autogen agent with enhanced configuration
         self.agent = AssistantAgent(
             name=name,
             system_message=system_message,
-            model_client=model_client
+            model_client=model_client,
+            description=description or f"I am {name}, specialized in my domain."
         )
         
         self.name = name
         self.system_message = system_message
-        self.call_count = 0  # Track how many times this agent was called
-        self.error_count = 0  # Track errors
+        self.description = description
+        self.call_count = 0
+        self.error_count = 0
+        self.conversation_history: List[Dict] = []
         
         logger.info(f"✅ {name} created successfully")
         logger.info(f"📊 Using provider: {Config.CURRENT_PROVIDER}")
         logger.info("=" * 60)
     
-    async def ask(self, prompt: str, retry_on_failure: bool = True) -> str:
+    async def ask(
+        self, 
+        prompt: str, 
+        retry_on_failure: bool = True,
+        context: Optional[List[Dict]] = None
+    ) -> str:
         """
         Send a prompt to the agent and get a response.
         Automatically handles failover if API quota is exceeded.
@@ -64,6 +83,7 @@ class BaseAgent:
         Args:
             prompt: The question/task for the agent
             retry_on_failure: Whether to retry with backup API on failure
+            context: Optional conversation context
             
         Returns:
             Agent's response as string
@@ -77,6 +97,12 @@ class BaseAgent:
         logger.info(f"🌐 Current provider: {Config.CURRENT_PROVIDER}")
         logger.info("─" * 60)
         
+        # Store in conversation history
+        self.conversation_history.append({
+            "role": "user",
+            "content": prompt
+        })
+        
         try:
             # Attempt to call the agent
             logger.debug(f"⏳ Sending request to {Config.CURRENT_PROVIDER}...")
@@ -84,6 +110,12 @@ class BaseAgent:
             
             # Extract response
             response = self._extract_response(result)
+            
+            # Store response in history
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": response
+            })
             
             logger.info(f"✅ {self.name} responded successfully")
             logger.info(f"📤 Response length: {len(response)} characters")
@@ -123,6 +155,12 @@ class BaseAgent:
                     result = await self.agent.run(task=prompt)
                     response = self._extract_response(result)
                     
+                    # Store response
+                    self.conversation_history.append({
+                        "role": "assistant",
+                        "content": response
+                    })
+                    
                     logger.info("✅" + "=" * 60)
                     logger.info(f"✅ {self.name} retry SUCCESSFUL")
                     logger.info(f"✅ Now using: {Config.CURRENT_PROVIDER}")
@@ -140,7 +178,6 @@ class BaseAgent:
                     return f"ERROR: Both API providers failed. Original: {error_msg}, Retry: {str(retry_error)}"
             
             else:
-                # Not a quota error, or retry disabled
                 logger.error(f"❌ Not attempting failover (quota_error={is_quota_error}, retry={retry_on_failure})")
                 return f"ERROR_CALLING_AGENT: {error_msg}"
     
@@ -213,7 +250,8 @@ class BaseAgent:
             "call_count": self.call_count,
             "error_count": self.error_count,
             "success_rate": f"{((self.call_count - self.error_count) / max(self.call_count, 1)) * 100:.1f}%",
-            "current_provider": Config.CURRENT_PROVIDER
+            "current_provider": Config.CURRENT_PROVIDER,
+            "conversation_length": len(self.conversation_history)
         }
     
     def reset_stats(self):
@@ -221,14 +259,16 @@ class BaseAgent:
         logger.info(f"🔄 Resetting stats for {self.name}")
         self.call_count = 0
         self.error_count = 0
+        self.conversation_history = []
+    
+    def get_conversation_history(self) -> List[Dict]:
+        """Get the agent's conversation history"""
+        return self.conversation_history
+    
+    def clear_conversation_history(self):
+        """Clear the agent's conversation history"""
+        logger.info(f"🗑️ Clearing conversation history for {self.name}")
+        self.conversation_history = []
 
 
-# Helper function for backwards compatibility
-async def _maybe_await(value: Any) -> Any:
-    """Await a value if it's a coroutine, otherwise return as-is"""
-    if asyncio.iscoroutine(value):
-        return await value
-    return value
-
-
-logger.info("✅ BaseAgent module loaded successfully")
+logger.info("BaseAgent module loaded successfully")

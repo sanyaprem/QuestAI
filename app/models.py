@@ -17,10 +17,14 @@ class StartRequest(BaseModel):
     jd_text: str = Field(..., description="Job description text")
     mode: str = Field(..., description="Interview mode: 'teach' or 'experience'")
     user_name: Optional[str] = Field(default="Candidate", description="Candidate's name")
+    collaboration_mode: Optional[str] = Field(
+        default="sequential",
+        description="Collaboration mode: 'sequential' or 'collaborative'"
+    )
     
     def log_request(self):
         """Log the request details"""
-        logger.info(f"StartRequest - Mode: {self.mode}, User: {self.user_name}")
+        logger.info(f"StartRequest - Mode: {self.mode}, User: {self.user_name}, Collaboration: {self.collaboration_mode}")
         logger.debug(f"Resume length: {len(self.resume_text)} chars")
         logger.debug(f"JD length: {len(self.jd_text)} chars")
 
@@ -47,3 +51,6 @@ class MatchRequest(BaseModel):
         """Log the request details"""
         logger.info("MatchRequest received")
         logger.debug(f"Resume: {len(self.resume_text)} chars, JD: {len(self.jd_text)} chars")
+
+
+logger.info("✅ Models module loaded with enhanced features")

@@ -17,21 +17,21 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="QuestAI Interview Agent",
-    description="Multi-agent interview simulation with Teach & Experience modes",
-    version="2.0.0"
+    description="Multi-agent interview simulation with AutoGen GroupChat support",
+    version="2.1.0"  # Updated version
 )
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # ⚠️ tighten this in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 logger.info("=" * 70)
-logger.info("🚀 FastAPI application initialized")
+logger.info("🚀 FastAPI application initialized with AutoGen enhancements")
 logger.info("=" * 70)
 
 
@@ -43,9 +43,10 @@ logger.info("=" * 70)
 async def startup_event():
     """Startup event handler"""
     logger.info("=" * 70)
-    logger.info("🚀 QuestAI Backend Starting")
+    logger.info("🚀 QuestAI Backend Starting (Enhanced)")
     logger.info(f"Version: {app.version}")
     logger.info(f"Current Provider: {Config.CURRENT_PROVIDER}")
+    logger.info(f"Mock Mode: {Config.MOCK_MODE}")
     logger.info("=" * 70)
 
 
@@ -68,15 +69,18 @@ def root():
     logger.info("GET / - Root endpoint accessed")
     
     return {
-        "message": "QuestAI backend is running.",
+        "message": "QuestAI backend with AutoGen multi-agent support",
         "version": app.version,
         "current_provider": Config.CURRENT_PROVIDER,
-        "failover_count": Config.FAILOVER_COUNT
+        "failover_count": Config.FAILOVER_COUNT,
+        "features": [
+            "Sequential Orchestration",
+            "GroupChat Collaboration (RoundRobin)",
+            "Automatic API Failover",
+            "Comprehensive Logging"
+        ]
     }
 
-
-# app/main.py
-# ... (keep all existing code, just update these endpoints) ...
 
 @app.get("/health")
 def health_check():
@@ -85,8 +89,8 @@ def health_check():
     
     return {
         "status": "healthy",
-        "mock_mode": Config.MOCK_MODE,  # NEW
-        "provider": Config.CURRENT_PROVIDER if not Config.MOCK_MODE else "mock",  # NEW
+        "mock_mode": Config.MOCK_MODE,
+        "provider": Config.CURRENT_PROVIDER if not Config.MOCK_MODE else "mock",
         "failover_count": Config.FAILOVER_COUNT
     }
 
@@ -101,21 +105,29 @@ def get_status():
     
     return status
 
+
 @app.post("/start_interview")
 async def api_start_interview(req: StartRequest):
-    """Start a new interview session."""
+    """
+    Start a new interview session.
+    Supports both sequential and collaborative modes.
+    """
     logger.info("=" * 70)
-    logger.info("POST /start_interview")
+    logger.info("POST /start_interview (Enhanced)")
     logger.info("=" * 70)
     
     req.log_request()
+    
+    # Check for collaboration_mode in request (optional)
+    collaboration_mode = getattr(req, 'collaboration_mode', 'sequential')
     
     try:
         result = await create_session(
             req.resume_text,
             req.jd_text,
             mode=req.mode,
-            user_name=req.user_name
+            user_name=req.user_name,
+            collaboration_mode=collaboration_mode
         )
         
         logger.info(f"✅ Interview started - Session: {result['session_id']}")
@@ -128,6 +140,39 @@ async def api_start_interview(req: StartRequest):
         logger.info("=" * 70)
         
         raise HTTPException(status_code=500, detail=f"Failed to start interview: {str(e)}")
+
+
+@app.post("/start_collaborative_interview")
+async def api_start_collaborative_interview(req: StartRequest):
+    """
+    Start a collaborative interview using AutoGen GroupChat.
+    NEW ENDPOINT for explicit collaborative mode.
+    """
+    logger.info("=" * 70)
+    logger.info("POST /start_collaborative_interview")
+    logger.info("=" * 70)
+    
+    req.log_request()
+    
+    try:
+        result = await create_session(
+            req.resume_text,
+            req.jd_text,
+            mode=req.mode,
+            user_name=req.user_name,
+            collaboration_mode="collaborative"  # Force collaborative mode
+        )
+        
+        logger.info(f"✅ Collaborative interview started - Session: {result['session_id']}")
+        logger.info("=" * 70)
+        
+        return result
+    
+    except Exception as e:
+        logger.error(f"❌ Error starting collaborative interview: {str(e)}", exc_info=True)
+        logger.info("=" * 70)
+        
+        raise HTTPException(status_code=500, detail=f"Failed to start collaborative interview: {str(e)}")
 
 
 @app.post("/submit_answer")
@@ -252,4 +297,4 @@ async def match_score(req: MatchRequest):
         raise HTTPException(status_code=500, detail=f"Failed to calculate match: {str(e)}")
 
 
-logger.info("✅ FastAPI routes configured")
+logger.info("✅ FastAPI routes configured with AutoGen enhancements")
