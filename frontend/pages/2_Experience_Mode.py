@@ -16,13 +16,129 @@ import logging
 setup_frontend_logging()
 logger = logging.getLogger(__name__)
 
-st.title("💼 Experience Mode Interview")
+# Page config
+st.set_page_config(
+    page_title="Experience Mode - QuestAI",
+    page_icon="💼",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Apply custom styling
+st.markdown('''
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+    
+    * { font-family: 'Inter', sans-serif; }
+    
+    /* Page background - Dark Mode */
+    .stApp {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    }
+    
+    /* Header card */
+    .header-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2.5rem 2rem;
+        border-radius: 20px;
+        text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+    }
+    
+    .header-title {
+        color: white;
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+    }
+    
+    .header-subtitle {
+        color: #e0e7ff;
+        font-size: 1.2rem;
+        font-weight: 300;
+    }
+    
+    /* Upload section */
+    .upload-container {
+        background: white;
+        padding: 2rem;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+    
+    /* File uploader styling */
+    .stFileUploader {
+        border: 2px dashed #cbd5e1;
+        border-radius: 15px;
+        padding: 2rem;
+        transition: all 0.3s ease;
+    }
+    
+    .stFileUploader:hover {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.05);
+    }
+    
+    /* Chat messages */
+    .stChatMessage {
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 0.75rem 2rem;
+        font-weight: 700;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+    }
+    
+    /* Code editor */
+    .stTextArea textarea {
+        font-family: 'Consolas', 'Monaco', monospace;
+        border-radius: 10px;
+        border: 2px solid #e2e8f0;
+    }
+    
+    .stTextArea textarea:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    /* Info boxes */
+    .stInfo, .stSuccess, .stWarning, .stError {
+        border-radius: 10px;
+        border-left: 4px solid;
+        padding: 1rem;
+    }
+</style>
+''', unsafe_allow_html=True)
 
 logger.info("=" * 70)
 logger.info("Experience Mode page loaded")
+logger.info(f"Using backend: {BACKEND_URL}")
 logger.info("=" * 70)
 
-logger.info(f"Using backend: {BACKEND_URL}")
+# Page Header
+st.markdown('''
+<div class="header-card">
+    <h1 class="header-title">💼 Experience Mode Interview</h1>
+    <p class="header-subtitle">Realistic mock interview with professional evaluation</p>
+</div>
+''', unsafe_allow_html=True)
 
 def extract_text(file):
     """Extract text from PDF or TXT file"""
@@ -58,49 +174,82 @@ if "session_id" not in st.session_state:
 if "current_question" not in st.session_state:
     st.session_state.current_question = None
 
-# Upload files
-resume_file = st.file_uploader("📄 Upload your Resume (PDF/TXT)", type=["pdf", "txt"])
-jd_file = st.file_uploader("📑 Upload the Job Description (PDF/TXT)", type=["pdf", "txt"])
-
-if st.button("🚀 Start Experience Mode Interview"):
-    logger.info("Start button clicked")
+# Only show upload section if interview hasn't started
+if not st.session_state.session_id:
+    # Upload Section
+    st.markdown('<div class="upload-container">', unsafe_allow_html=True)
     
-    resume_text = extract_text(resume_file)
-    jd_text = extract_text(jd_file)
-
-    if not resume_text or not jd_text:
-        st.error("⚠️ Please upload both resume and JD.")
-        logger.warning("Missing resume or JD")
-    else:
-        logger.info("Starting interview...")
+    st.markdown("### 📁 Upload Your Documents")
+    st.markdown("Upload your resume and job description to get started with a realistic interview simulation.")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        resume_file = st.file_uploader(
+            "📄 Your Resume", 
+            type=["pdf", "txt"],
+            help="Upload your resume in PDF or TXT format"
+        )
+    
+    with col2:
+        jd_file = st.file_uploader(
+            "📑 Job Description", 
+            type=["pdf", "txt"],
+            help="Upload the job description you're targeting"
+        )
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Start Interview Button
+    if resume_file and jd_file:
+        st.markdown("<br>", unsafe_allow_html=True)
         
-        with st.spinner("Starting interview..."):
-            try:
-                res = requests.post(f"{BACKEND_URL}/start_interview", json={
-                    "resume_text": resume_text,
-                    "jd_text": jd_text,
-                    "mode": "experience",
-                    "user_name": "Candidate"
-                }, timeout=60)
+        col_a, col_b, col_c = st.columns([1, 2, 1])
+        with col_b:
+            if st.button("🚀 Start Experience Mode Interview", type="primary", use_container_width=True):
+                logger.info("Start button clicked")
                 
-                if res.status_code == 200:
-                    data = res.json()
-                    st.session_state.session_id = data["session_id"]
-                    st.session_state.current_question = data["first_question"]
-                    st.session_state.chat_history = [("assistant", data["first_question"])]
-                    
-                    logger.info(f"✅ Interview started - Session: {data['session_id']}")
-                    st.success("✅ Interview started!")
-                    st.rerun()
+                resume_text = extract_text(resume_file)
+                jd_text = extract_text(jd_file)
+
+                if not resume_text or not jd_text:
+                    st.error("⚠️ Please upload both resume and JD.")
+                    logger.warning("Missing resume or JD")
                 else:
-                    logger.error(f"Failed to start: {res.status_code}")
-                    st.error(f"❌ Failed: {res.status_code}")
-            
-            except Exception as e:
-                logger.error(f"Error: {str(e)}", exc_info=True)
-                st.error(f"❌ Error: {str(e)}")
+                    logger.info("Starting interview...")
+                    
+                    with st.spinner("🔄 Starting your interview... Please wait."):
+                        try:
+                            res = requests.post(f"{BACKEND_URL}/start_interview", json={
+                                "resume_text": resume_text,
+                                "jd_text": jd_text,
+                                "mode": "experience",
+                                "user_name": "Candidate"
+                            }, timeout=60)
+                            
+                            if res.status_code == 200:
+                                data = res.json()
+                                st.session_state.session_id = data["session_id"]
+                                st.session_state.current_question = data["first_question"]
+                                st.session_state.chat_history = [("assistant", data["first_question"])]
+                                
+                                logger.info(f"✅ Interview started - Session: {data['session_id']}")
+                                st.success("✅ Interview started!")
+                                st.rerun()
+                            else:
+                                logger.error(f"Failed to start: {res.status_code}")
+                                st.error(f"❌ Failed: {res.status_code}")
+                        
+                        except Exception as e:
+                            logger.error(f"Error: {str(e)}", exc_info=True)
+                            st.error(f"❌ Error: {str(e)}")
+    else:
+        st.info("👆 Please upload both your resume and the job description to begin")
 
 # Display chat messages
+if st.session_state.chat_history:
+    st.markdown("### 💬 Interview Conversation")
+
 for role, msg in st.session_state.chat_history:
     with st.chat_message(role):
         st.write(msg)
@@ -167,7 +316,6 @@ if st.session_state.session_id and st.session_state.current_question:
                     
                     with st.spinner("🔄 Submitting your code..."):
                         try:
-                            logger.info(f"Submitting answer to: {BACKEND_URL}/submit_answer")
                             res = requests.post(f"{BACKEND_URL}/submit_answer", json={
                                 "session_id": st.session_state.session_id,
                                 "question": st.session_state.current_question,
@@ -209,7 +357,6 @@ if st.session_state.session_id and st.session_state.current_question:
             if st.button("⏭️ Skip", use_container_width=True, key="skip_code_btn"):
                 logger.info("User skipped question")
                 st.session_state.chat_history.append(("user", "[Skipped]"))
-                # Submit empty answer
                 try:
                     res = requests.post(f"{BACKEND_URL}/submit_answer", json={
                         "session_id": st.session_state.session_id,
@@ -281,95 +428,100 @@ if st.session_state.session_id and st.session_state.current_question:
 
 # === REPORT SECTION ===
 if st.session_state.session_id and st.session_state.current_question is None:
-    # Interview is complete, show report option
     st.markdown("---")
-    st.subheader("📊 Your Interview Report")
+    st.markdown("### 📊 Your Interview Report")
     
-    if st.button("📄 Generate Final Report", type="primary", use_container_width=True):
-        logger.info(f"Generating report for session: {st.session_state.session_id}")
-        
-        with st.spinner("Generating your comprehensive report..."):
-            try:
-                logger.info(f"Fetching report from: {BACKEND_URL}/report")
-                res = requests.get(
-                    f"{BACKEND_URL}/report",
-                    params={"session_id": st.session_state.session_id},
-                    timeout=60
-                )
-                
-                if res.status_code == 200:
-                    report = res.json()
-                    logger.info("Report fetched successfully")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        if st.button("📄 Generate Final Report", type="primary", use_container_width=True):
+            logger.info(f"Generating report for session: {st.session_state.session_id}")
+            
+            with st.spinner("📝 Generating your comprehensive report..."):
+                try:
+                    res = requests.get(
+                        f"{BACKEND_URL}/report",
+                        params={"session_id": st.session_state.session_id},
+                        timeout=60
+                    )
                     
-                    st.success("✅ Report Generated Successfully!")
-                    
-                    # Display report
-                    report_data = report.get("report", {})
-                    
-                    st.markdown("### 📈 Interview Summary")
-                    
-                    if isinstance(report_data, dict):
-                        if "strengths" in report_data:
-                            with st.expander("💪 Strengths", expanded=True):
-                                strengths = report_data.get("strengths", "N/A")
-                                if isinstance(strengths, list):
-                                    for strength in strengths:
-                                        st.success(f"✓ {strength}")
-                                else:
-                                    st.write(strengths)
+                    if res.status_code == 200:
+                        report = res.json()
+                        logger.info("Report fetched successfully")
                         
-                        if "weaknesses" in report_data:
-                            with st.expander("⚠️ Areas for Improvement"):
-                                weaknesses = report_data.get("weaknesses", "N/A")
-                                if isinstance(weaknesses, list):
-                                    for weakness in weaknesses:
-                                        st.warning(f"• {weakness}")
-                                else:
-                                    st.write(weaknesses)
+                        st.success("✅ Report Generated Successfully!")
                         
-                        if "recommendations" in report_data:
-                            with st.expander("📋 Recommendations"):
-                                recommendations = report_data.get("recommendations", "N/A")
-                                if isinstance(recommendations, list):
-                                    for rec in recommendations:
-                                        st.info(f"→ {rec}")
-                                else:
-                                    st.write(recommendations)
-                    else:
-                        st.markdown(str(report_data))
-                    
-                    st.markdown("---")
-                    st.markdown("### 📝 Detailed Q&A Review with Evaluations")
-                    
-                    for idx, ans in enumerate(report.get("answers", []), 1):
-                        with st.expander(f"Question {idx}: {ans['question'][:80]}..."):
-                            st.markdown(f"**Question:**")
-                            st.info(ans['question'])
+                        # Display report
+                        report_data = report.get("report", {})
+                        
+                        st.markdown("### 📈 Interview Summary")
+                        
+                        if isinstance(report_data, dict):
+                            col_a, col_b, col_c = st.columns(3)
                             
-                            st.markdown(f"**Your Answer:**")
-                            st.text_area("", ans['answer'], height=150, disabled=True, key=f"answer_{idx}")
+                            with col_a:
+                                if "strengths" in report_data:
+                                    with st.expander("💪 Strengths", expanded=True):
+                                        strengths = report_data.get("strengths", "N/A")
+                                        if isinstance(strengths, list):
+                                            for strength in strengths:
+                                                st.success(f"✓ {strength}")
+                                        else:
+                                            st.write(strengths)
                             
-                            st.markdown(f"**📊 Evaluation:**")
-                            eval_data = ans['evaluation']
-                            if isinstance(eval_data, dict):
-                                col1, col2 = st.columns([1, 3])
-                                with col1:
-                                    score = eval_data.get('score', 'N/A')
-                                    st.metric("Score", f"{score}/10")
-                                with col2:
-                                    st.write(f"**Feedback:** {eval_data.get('feedback', 'No feedback')}")
+                            with col_b:
+                                if "weaknesses" in report_data:
+                                    with st.expander("⚠️ Areas for Improvement"):
+                                        weaknesses = report_data.get("weaknesses", "N/A")
+                                        if isinstance(weaknesses, list):
+                                            for weakness in weaknesses:
+                                                st.warning(f"• {weakness}")
+                                        else:
+                                            st.write(weaknesses)
+                            
+                            with col_c:
+                                if "recommendations" in report_data:
+                                    with st.expander("📋 Recommendations"):
+                                        recommendations = report_data.get("recommendations", "N/A")
+                                        if isinstance(recommendations, list):
+                                            for rec in recommendations:
+                                                st.info(f"→ {rec}")
+                                        else:
+                                            st.write(recommendations)
+                        else:
+                            st.markdown(str(report_data))
+                        
+                        st.markdown("---")
+                        st.markdown("### 📝 Detailed Q&A Review with Evaluations")
+                        
+                        for idx, ans in enumerate(report.get("answers", []), 1):
+                            with st.expander(f"Question {idx}: {ans['question'][:80]}..."):
+                                st.markdown("**❓ Question:**")
+                                st.info(ans['question'])
                                 
-                                # Show recommendations if available
-                                if eval_data.get('recommendations'):
-                                    st.markdown("**💡 Recommendations:**")
-                                    for rec in eval_data['recommendations']:
-                                        st.write(f"- {rec}")
-                            else:
-                                st.write(eval_data)
-                    
-                    st.markdown("---")
-                    
-                    download_report = f"""
+                                st.markdown("**💬 Your Answer:**")
+                                st.text_area("", ans['answer'], height=150, disabled=True, key=f"answer_{idx}")
+                                
+                                st.markdown("**📊 Evaluation:**")
+                                eval_data = ans['evaluation']
+                                if isinstance(eval_data, dict):
+                                    metric_col1, metric_col2 = st.columns([1, 3])
+                                    with metric_col1:
+                                        score = eval_data.get('score', 'N/A')
+                                        st.metric("Score", f"{score}/10")
+                                    with metric_col2:
+                                        st.write(f"**Feedback:** {eval_data.get('feedback', 'No feedback')}")
+                                    
+                                    if eval_data.get('recommendations'):
+                                        st.markdown("**💡 Recommendations:**")
+                                        for rec in eval_data['recommendations']:
+                                            st.write(f"- {rec}")
+                                else:
+                                    st.write(eval_data)
+                        
+                        st.markdown("---")
+                        
+                        download_report = f'''
 QuestAI Interview Report
 ========================
 Session ID: {st.session_state.session_id}
@@ -381,38 +533,37 @@ OVERALL SUMMARY
 
 DETAILED Q&A WITH EVALUATIONS
 ==============================
-"""
-                    for idx, ans in enumerate(report.get("answers", []), 1):
-                        download_report += f"\n\n{'='*60}\n"
-                        download_report += f"Question {idx}:\n{ans['question']}\n\n"
-                        download_report += f"Your Answer:\n{ans['answer']}\n\n"
-                        download_report += f"Evaluation:\n{ans['evaluation']}\n"
-                        download_report += f"{'='*60}\n"
-                    
-                    st.download_button(
-                        label="📥 Download Report as Text",
-                        data=download_report,
-                        file_name=f"interview_report_{st.session_state.session_id[:8]}.txt",
-                        mime="text/plain",
-                        use_container_width=True
-                    )
-                    
-                    logger.info(f"Report displayed successfully")
-                    
-                else:
-                    logger.error(f"Failed to fetch report: {res.status_code}")
-                    st.error(f"❌ Failed to fetch report: {res.status_code}")
-            
-            except Exception as e:
-                logger.error(f"Error fetching report: {str(e)}", exc_info=True)
-                st.error(f"❌ Error: {str(e)}")
-    
-    st.markdown("---")
-    if st.button("🔄 Start New Interview", use_container_width=True):
-        logger.info("User clicked Start New Interview")
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
-        logger.info("Session state cleared")
-        st.rerun()
+'''
+                        for idx, ans in enumerate(report.get("answers", []), 1):
+                            download_report += f"\n\n{'='*60}\n"
+                            download_report += f"Question {idx}:\n{ans['question']}\n\n"
+                            download_report += f"Your Answer:\n{ans['answer']}\n\n"
+                            download_report += f"Evaluation:\n{ans['evaluation']}\n"
+                            download_report += f"{'='*60}\n"
+                        
+                        st.download_button(
+                            label="📥 Download Report as Text",
+                            data=download_report,
+                            file_name=f"interview_report_{st.session_state.session_id[:8]}.txt",
+                            mime="text/plain",
+                            use_container_width=True
+                        )
+                        
+                        logger.info("Report displayed successfully")
+                        
+                    else:
+                        logger.error(f"Failed to fetch report: {res.status_code}")
+                        st.error(f"❌ Failed to fetch report: {res.status_code}")
+                
+                except Exception as e:
+                    logger.error(f"Error fetching report: {str(e)}", exc_info=True)
+                    st.error(f"❌ Error: {str(e)}")
+        
+        if st.button("🔄 Start New Interview", use_container_width=True):
+            logger.info("User clicked Start New Interview")
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            logger.info("Session state cleared")
+            st.rerun()
 
 logger.info("Experience Mode page rendered")
