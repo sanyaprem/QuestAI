@@ -219,6 +219,49 @@ def extract_text(file):
     
     return ""
 
+
+def is_coding_question(question_text: str) -> bool:
+    """
+    Determine if a question is a coding question.
+    More strict criteria to avoid false positives.
+    """
+    if not question_text:
+        return False
+    
+    text_lower = question_text.lower()
+    
+    # Strong coding indicators
+    strong_indicators = [
+        "write a function",
+        "implement a",
+        "write code",
+        "write a program",
+        "create a function",
+        "def ",
+        "class ",
+        "algorithm to",
+        "data structure",
+        "complexity analysis",
+        "time complexity",
+        "space complexity",
+        "pseudocode"
+    ]
+    
+    for indicator in strong_indicators:
+        if indicator in text_lower:
+            logger.info(f"Coding question detected: '{indicator}' found")
+            return True
+    
+    # Check if question explicitly asks for code
+    if any(phrase in text_lower for phrase in ["write", "implement", "code"]) and \
+       any(word in text_lower for word in ["function", "method", "algorithm", "program"]):
+        logger.info("Coding question detected: composite match")
+        return True
+    
+    logger.info("Not a coding question")
+    return False
+
+
 # --- Session state ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
@@ -329,17 +372,13 @@ for role, msg in st.session_state.chat_history:
 if st.session_state.session_id and st.session_state.current_question:
     logger.info("Rendering answer input")
     
-    # Detect if it's a coding question
-    question_lower = st.session_state.current_question.lower()
-    is_coding_question = any(keyword in question_lower for keyword in [
-        "code", "function", "implement", "algorithm", "write a",
-        "def ", "class ", "return", "programming", "solve", "data structure"
-    ])
+    # FIXED: Use improved coding question detection
+    is_coding = is_coding_question(st.session_state.current_question)
     
     st.markdown("---")
     
-    if is_coding_question:
-        # === CODING QUESTION - CODE EDITOR (FIXED) ===
+    if is_coding:
+        # === CODING QUESTION - CODE EDITOR ===
         st.info("💻 **Coding Question Detected** - Use the code editor below")
         
         col1, col2 = st.columns([3, 1])
@@ -368,7 +407,7 @@ if st.session_state.session_id and st.session_state.current_question:
         with col1:
             st.markdown("**✍️ Write Your Code:**")
         
-        # FIXED: Multi-line code input with proper key and value binding
+        # Multi-line code input
         code_answer = st.text_area(
             "Code Editor",
             value=st.session_state.code_input,
@@ -482,9 +521,26 @@ if st.session_state.session_id and st.session_state.current_question:
         # === NON-CODING QUESTION - REGULAR CHAT INPUT ===
         st.info("💬 **Regular Question** - Type your answer below")
         
-        # Use chat input for non-coding questions
-        if answer := st.chat_input("Your answer here...", key="teach_mode_input"):
-            logger.info(f"Answer submitted: {len(answer)} chars")
+        # Use chat input for non-coding questions with validation
+        if answer := st.chat_input("Your detailed answer here...", key="teach_mode_input"):
+            # FIXED: Validate answer before submission
+            answer_clean = answer.strip().lower()
+            
+            # Check for minimum length
+            if len(answer.strip()) < 10:
+                st.warning("⚠️ Please provide a more detailed answer (at least 10 characters)")
+                logger.warning(f"Answer too short: {len(answer)} chars")
+                st.stop()
+            
+            # Check for acknowledgment-only responses
+            acknowledgments = ['ok', 'okay', 'yes', 'no', 'sure', 'fine', 'good', 'alright', 'k', 'yep', 'nope']
+            if answer_clean in acknowledgments:
+                st.warning("⚠️ Please provide a detailed answer instead of just acknowledging")
+                logger.warning(f"Invalid answer: {answer}")
+                st.stop()
+            
+            # Valid answer - proceed with submission
+            logger.info(f"Valid answer submitted: {len(answer)} chars")
             
             st.session_state.chat_history.append(("user", answer))
             

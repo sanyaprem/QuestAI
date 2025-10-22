@@ -24,19 +24,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Apply custom styling
+# Apply custom styling (same as Teach Mode)
 st.markdown('''
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
     
     * { font-family: 'Inter', sans-serif; }
     
-    /* Page background - Dark Mode */
     .stApp {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     }
     
-    /* Header card */
     .header-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 2.5rem 2rem;
@@ -59,7 +57,6 @@ st.markdown('''
         font-weight: 300;
     }
     
-    /* Upload section */
     .upload-container {
         background: white;
         padding: 2rem;
@@ -68,7 +65,6 @@ st.markdown('''
         margin-bottom: 2rem;
     }
     
-    /* File uploader styling */
     .stFileUploader {
         border: 2px dashed #cbd5e1;
         border-radius: 15px;
@@ -81,7 +77,6 @@ st.markdown('''
         background: rgba(102, 126, 234, 0.05);
     }
     
-    /* Chat messages */
     .stChatMessage {
         border-radius: 15px;
         padding: 1.5rem;
@@ -89,7 +84,6 @@ st.markdown('''
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
     
-    /* Buttons */
     .stButton > button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -106,7 +100,6 @@ st.markdown('''
         box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
     }
     
-    /* Code editor - FIXED */
     .stTextArea textarea {
         font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
         border-radius: 10px;
@@ -127,7 +120,6 @@ st.markdown('''
         font-weight: 600 !important;
     }
     
-    /* Info boxes */
     .stInfo, .stSuccess, .stWarning, .stError {
         border-radius: 10px;
         border-left: 4px solid;
@@ -172,6 +164,47 @@ def extract_text(file):
     
     return ""
 
+
+def is_coding_question(question_text: str) -> bool:
+    """
+    Determine if a question is a coding question.
+    Same logic as Teach Mode.
+    """
+    if not question_text:
+        return False
+    
+    text_lower = question_text.lower()
+    
+    strong_indicators = [
+        "write a function",
+        "implement a",
+        "write code",
+        "write a program",
+        "create a function",
+        "def ",
+        "class ",
+        "algorithm to",
+        "data structure",
+        "complexity analysis",
+        "time complexity",
+        "space complexity",
+        "pseudocode"
+    ]
+    
+    for indicator in strong_indicators:
+        if indicator in text_lower:
+            logger.info(f"Coding question detected: '{indicator}' found")
+            return True
+    
+    if any(phrase in text_lower for phrase in ["write", "implement", "code"]) and \
+       any(word in text_lower for word in ["function", "method", "algorithm", "program"]):
+        logger.info("Coding question detected: composite match")
+        return True
+    
+    logger.info("Not a coding question")
+    return False
+
+
 # Session state
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
@@ -183,7 +216,6 @@ if "session_id" not in st.session_state:
 if "current_question" not in st.session_state:
     st.session_state.current_question = None
 
-# FIXED: Initialize code editor state
 if "code_input_exp" not in st.session_state:
     st.session_state.code_input_exp = ""
 
@@ -271,17 +303,13 @@ for role, msg in st.session_state.chat_history:
 if st.session_state.session_id and st.session_state.current_question:
     logger.info("Rendering answer input")
     
-    # Detect if it's a coding question
-    question_lower = st.session_state.current_question.lower()
-    is_coding_question = any(keyword in question_lower for keyword in [
-        "code", "function", "implement", "algorithm", "write a",
-        "def ", "class ", "return", "programming", "solve", "data structure"
-    ])
+    # FIXED: Use improved coding question detection
+    is_coding = is_coding_question(st.session_state.current_question)
     
     st.markdown("---")
     
-    if is_coding_question:
-        # === CODING QUESTION - CODE EDITOR (FIXED) ===
+    if is_coding:
+        # === CODING QUESTION - CODE EDITOR ===
         st.info("💻 **Coding Question Detected** - Use the code editor below")
         
         col1, col2 = st.columns([3, 1])
@@ -294,7 +322,6 @@ if st.session_state.session_id and st.session_state.current_question:
                 key="language_selector_exp"
             )
             
-            # Template button
             if st.button("📋 Insert Template", use_container_width=True):
                 templates = {
                     "python": "def solution():\n    # Write your solution here\n    pass\n\n# Test your solution\nif __name__ == '__main__':\n    print(solution())",
@@ -310,7 +337,6 @@ if st.session_state.session_id and st.session_state.current_question:
         with col1:
             st.markdown("**✍️ Write Your Code:**")
         
-        # FIXED: Multi-line code input with proper key and value binding
         code_answer = st.text_area(
             "Code Editor",
             value=st.session_state.code_input_exp,
@@ -321,10 +347,8 @@ if st.session_state.session_id and st.session_state.current_question:
             help="Write your code here. The editor supports syntax highlighting."
         )
         
-        # Update session state
         st.session_state.code_input_exp = code_answer
         
-        # Show formatted preview
         if code_answer and code_answer.strip():
             with st.expander("📋 Preview (how it will be submitted)", expanded=False):
                 st.code(code_answer, language=language)
@@ -337,7 +361,6 @@ if st.session_state.session_id and st.session_state.current_question:
                     st.error("⚠️ Please write your code before submitting")
                     logger.warning("Empty code submission attempted")
                 else:
-                    # Format answer with language
                     formatted_answer = f"```{language}\n{code_answer}\n```"
                     
                     logger.info(f"Code answer submitted: {len(code_answer)} chars, Language: {language}")
@@ -362,7 +385,6 @@ if st.session_state.session_id and st.session_state.current_question:
                             confirmation_text = "✅ **Answer submitted successfully!**"
                             st.session_state.chat_history.append(("assistant", confirmation_text))
                             
-                            # Clear code editor
                             st.session_state.code_input_exp = ""
                             
                             if is_done:
@@ -419,9 +441,23 @@ if st.session_state.session_id and st.session_state.current_question:
         # === NON-CODING QUESTION - REGULAR CHAT INPUT ===
         st.info("💬 **Regular Question** - Type your answer below")
         
-        # Use chat input for non-coding questions
+        # Use chat input for non-coding questions with validation
         if answer := st.chat_input("Your answer here...", key="experience_mode_input"):
-            logger.info(f"Answer submitted: {len(answer)} chars")
+            # FIXED: Validate answer before submission
+            answer_clean = answer.strip().lower()
+            
+            if len(answer.strip()) < 10:
+                st.warning("⚠️ Please provide a more detailed answer (at least 10 characters)")
+                logger.warning(f"Answer too short: {len(answer)} chars")
+                st.stop()
+            
+            acknowledgments = ['ok', 'okay', 'yes', 'no', 'sure', 'fine', 'good', 'alright', 'k', 'yep', 'nope']
+            if answer_clean in acknowledgments:
+                st.warning("⚠️ Please provide a detailed answer instead of just acknowledging")
+                logger.warning(f"Invalid answer: {answer}")
+                st.stop()
+            
+            logger.info(f"Valid answer submitted: {len(answer)} chars")
             
             st.session_state.chat_history.append(("user", answer))
 
