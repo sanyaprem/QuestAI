@@ -110,18 +110,25 @@ st.markdown('''
         box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
     }
     
-    /* Code editor - Dark Mode */
+    /* Code editor - Dark Mode - FIXED */
     .stTextArea textarea {
-        font-family: 'Consolas', 'Monaco', monospace;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
         border-radius: 10px;
         border: 2px solid rgba(255, 255, 255, 0.2);
-        background: #0f172a;
-        color: #e2e8f0;
+        background: #0f172a !important;
+        color: #e2e8f0 !important;
+        font-size: 14px !important;
+        line-height: 1.5 !important;
     }
     
     .stTextArea textarea:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2) !important;
+    }
+    
+    .stTextArea label {
+        color: #cbd5e1 !important;
+        font-weight: 600 !important;
     }
     
     /* Info boxes */
@@ -225,6 +232,10 @@ if "current_question" not in st.session_state:
     st.session_state.current_question = None
     logger.info("Initialized current_question")
 
+# FIXED: Initialize code editor state
+if "code_input" not in st.session_state:
+    st.session_state.code_input = ""
+
 # Only show upload section if interview hasn't started
 if not st.session_state.session_id:
     # Upload Section
@@ -310,7 +321,6 @@ if not st.session_state.session_id:
 if st.session_state.chat_history:
     st.markdown("### 💬 Interview Conversation")
     
-logger.debug(f"Displaying {len(st.session_state.chat_history)} messages")
 for role, msg in st.session_state.chat_history:
     with st.chat_message(role):
         st.markdown(msg)
@@ -323,13 +333,13 @@ if st.session_state.session_id and st.session_state.current_question:
     question_lower = st.session_state.current_question.lower()
     is_coding_question = any(keyword in question_lower for keyword in [
         "code", "function", "implement", "algorithm", "write a",
-        "def ", "class ", "return", "programming", "solve"
+        "def ", "class ", "return", "programming", "solve", "data structure"
     ])
     
     st.markdown("---")
     
     if is_coding_question:
-        # === CODING QUESTION - CODE EDITOR ===
+        # === CODING QUESTION - CODE EDITOR (FIXED) ===
         st.info("💻 **Coding Question Detected** - Use the code editor below")
         
         col1, col2 = st.columns([3, 1])
@@ -341,22 +351,39 @@ if st.session_state.session_id and st.session_state.current_question:
                 index=0,
                 key="language_selector"
             )
+            
+            # Template button
+            if st.button("📋 Insert Template", use_container_width=True):
+                templates = {
+                    "python": "def solution():\n    # Write your solution here\n    pass\n\n# Test your solution\nif __name__ == '__main__':\n    print(solution())",
+                    "javascript": "function solution() {\n    // Write your solution here\n    \n}\n\n// Test your solution\nconsole.log(solution());",
+                    "java": "public class Solution {\n    public static void main(String[] args) {\n        // Write your solution here\n    }\n}",
+                    "cpp": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}",
+                    "go": "package main\n\nimport \"fmt\"\n\nfunc solution() {\n    // Write your solution here\n}\n\nfunc main() {\n    solution()\n}",
+                    "rust": "fn solution() {\n    // Write your solution here\n}\n\nfn main() {\n    solution();\n}"
+                }
+                st.session_state.code_input = templates.get(language, "")
+                st.rerun()
         
         with col1:
             st.markdown("**✍️ Write Your Code:**")
         
-        # Multi-line code input with proper height
+        # FIXED: Multi-line code input with proper key and value binding
         code_answer = st.text_area(
             "Code Editor",
-            value="",
+            value=st.session_state.code_input,
             height=400,
             placeholder=f"# Write your {language} code here\n\ndef solution():\n    # Your solution\n    pass",
-            key="code_editor",
-            label_visibility="collapsed"
+            key="code_editor_input",
+            label_visibility="collapsed",
+            help="Write your code here. The editor supports syntax highlighting."
         )
         
+        # Update session state
+        st.session_state.code_input = code_answer
+        
         # Show formatted preview
-        if code_answer:
+        if code_answer and code_answer.strip():
             with st.expander("📋 Preview (how it will be submitted)", expanded=False):
                 st.code(code_answer, language=language)
         
@@ -364,7 +391,7 @@ if st.session_state.session_id and st.session_state.current_question:
         
         with col_a:
             if st.button("✅ Submit Code", type="primary", use_container_width=True, key="submit_code_btn"):
-                if not code_answer.strip():
+                if not code_answer or not code_answer.strip():
                     st.error("⚠️ Please write your code before submitting")
                     logger.warning("Empty code submission attempted")
                 else:
@@ -402,9 +429,12 @@ if st.session_state.session_id and st.session_state.current_question:
                             
                             st.session_state.chat_history.append(("assistant", eval_text))
                             
+                            # Clear code editor
+                            st.session_state.code_input = ""
+                            
                             if is_done:
                                 logger.info("Interview completed")
-                                st.session_state.chat_history.append(("assistant", "🎉 **Interview Completed!**"))
+                                st.session_state.chat_history.append(("assistant", "🎉 **Interview Completed!** Go to Reports page to view your report."))
                                 st.session_state.current_question = None
                             elif next_q:
                                 logger.info("Moving to next question")
@@ -421,12 +451,14 @@ if st.session_state.session_id and st.session_state.current_question:
         
         with col_b:
             if st.button("🗑️ Clear", use_container_width=True, key="clear_code_btn"):
+                st.session_state.code_input = ""
                 st.rerun()
         
         with col_c:
             if st.button("⏭️ Skip", use_container_width=True, key="skip_code_btn"):
                 logger.info("User skipped question")
                 st.session_state.chat_history.append(("user", "[Skipped]"))
+                st.session_state.code_input = ""
                 # Submit empty answer
                 try:
                     res = requests.post(f"{BACKEND_URL}/submit_answer", json={
@@ -486,7 +518,7 @@ if st.session_state.session_id and st.session_state.current_question:
                     # Check if interview is complete
                     if is_done:
                         logger.info("Interview completed")
-                        st.session_state.chat_history.append(("assistant", "🎉 **Interview Completed!** You can now view your report."))
+                        st.session_state.chat_history.append(("assistant", "🎉 **Interview Completed!** Go to Reports page to view your report."))
                         st.session_state.current_question = None
                     elif next_q:
                         logger.info("Moving to next question")
@@ -501,51 +533,5 @@ if st.session_state.session_id and st.session_state.current_question:
                 except Exception as e:
                     logger.error(f"Error submitting answer: {str(e)}", exc_info=True)
                     st.error(f"❌ Error: {str(e)}")
-
-
-# === REPORT SECTION ===
-if st.session_state.session_id and st.session_state.current_question is None:
-    # Interview is complete, show report option
-    st.markdown("---")
-    st.markdown("### 📊 Your Interview Report")
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        if st.button("📄 Generate Final Report", type="primary", use_container_width=True):
-            logger.info(f"Generating report for session: {st.session_state.session_id}")
-            
-            with st.spinner("📝 Generating your comprehensive report..."):
-                try:
-                    logger.info(f"Fetching report from: {BACKEND_URL}/report")
-                    res = requests.get(
-                        f"{BACKEND_URL}/report",
-                        params={"session_id": st.session_state.session_id},
-                        timeout=60
-                    )
-                    
-                    if res.status_code == 200:
-                        report = res.json()
-                        logger.info("Report fetched successfully")
-                        
-                        st.success("✅ Report Generated Successfully!")
-                        
-                        # Display report (full implementation from earlier)
-                        # ... (keeping your existing report display code)
-                        
-                    else:
-                        logger.error(f"Failed to fetch report: {res.status_code}")
-                        st.error(f"❌ Failed to fetch report: {res.status_code}")
-                
-                except Exception as e:
-                    logger.error(f"Error fetching report: {str(e)}", exc_info=True)
-                    st.error(f"❌ Error: {str(e)}")
-        
-        if st.button("🔄 Start New Interview", use_container_width=True):
-            logger.info("User clicked Start New Interview")
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            logger.info("Session state cleared")
-            st.rerun()
 
 logger.info("Teach Mode page rendered")

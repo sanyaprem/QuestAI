@@ -50,37 +50,73 @@ st.markdown('''
     }
     
     /* Hero section */
+    /* ---------- Strong hero centering (place at END of your CSS) ---------- */
     .hero-container {
-        text-align: center;
-        padding: 3rem 2rem 2rem;
-        animation: fadeIn 1s ease-in;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;        /* center children horizontally */
+        justify-content: center !important;    /* center vertically if height present */
+        padding: 3rem 1.25rem 2.5rem !important;
+        margin: 0 auto !important;
+        width: 100% !important;
+        max-width: 1100px !important;          /* container width for visual balance */
+        box-sizing: border-box !important;
     }
     
+    /* Title stays large but keep responsive bounds */
     .hero-title {
-        font-size: 4.5rem;
-        font-weight: 800;
-        background: linear-gradient(120deg, #ffffff, #a5b4fc);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 1rem;
-        text-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        letter-spacing: -2px;
+        font-size: 4.2rem !important;
+        line-height: 1 !important;
+        margin: 0.2rem 0 0.6rem !important;
+        text-align: center !important;
     }
     
+    /* Subtitle centered with slightly increased weight for legibility */
     .hero-subtitle {
-        font-size: 1.6rem;
-        color: #cbd5e1;
-        margin-bottom: 1.5rem;
-        font-weight: 300;
+        font-size: 1.6rem !important;
+        color: #cbd5e1 !important;
+        margin: 0 0 0.9rem !important;
+        font-weight: 400 !important;
+        text-align: center !important;
+        letter-spacing: 0.25px !important;
     }
     
+    /* Constrain and center the description precisely */
     .hero-description {
-        font-size: 1.15rem;
-        color: #94a3b8;
-        max-width: 750px;
-        margin: 0 auto 2.5rem;
-        line-height: 1.8;
+        font-size: 1.06rem !important;
+        color: #a9b7d0 !important;
+        max-width: 760px !important;           /* match visual width to title */
+        width: 100% !important;
+        margin: 0 auto 2.5rem !important;      /* centers horizontally */
+        text-align: center !important;         /* center text lines */
+        line-height: 1.75 !important;
+        font-weight: 300 !important;
+        padding: 0 1rem !important;            /* breathing space on narrow screens */
+        box-sizing: border-box !important;
     }
+    
+    /* If Streamlit wraps your HTML in extra divs, catch them */
+    .hero-container > div, 
+    .hero-container .stMarkdown, 
+    .hero-container .stMarkdown > div {
+        width: 100% !important;
+        max-width: 1100px !important;
+        margin: 0 auto !important;
+    }
+    
+    /* Mobile tweaks — keep everything centered and readable */
+    @media (max-width: 768px) {
+        .hero-title { font-size: 2.6rem !important; }
+        .hero-subtitle { font-size: 1.05rem !important; margin-bottom: 0.6rem !important; }
+        .hero-description { 
+            font-size: 0.98rem !important; 
+            max-width: 92% !important; 
+            margin-bottom: 1.8rem !important;
+            line-height: 1.6 !important;
+        }
+    }
+
+
     
     /* Stats bar */
     .stats-container {
@@ -240,51 +276,94 @@ st.markdown('''
         line-height: 1.6;
     }
     
-    /* Steps section */
-    .steps-container {
-        max-width: 1200px;
-        margin: 3rem auto;
-        padding: 0 2rem;
-    }
-    
+/* Steps section - perfectly aligned like Step 01 */
+.steps-container {
+    max-width: 1200px;
+    margin: 3rem auto;
+    padding: 0 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+.step {
+    display: flex;
+    align-items: center;                /* vertically center number + card */
+    justify-content: flex-start;
+    gap: 2rem;
+    position: relative;
+    animation: slideIn 0.6s ease;
+}
+
+.step-number {
+    font-size: 3.5rem;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.25);
+    min-width: 90px;
+    text-align: center;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0;                      /* ensure number aligns to vertical center */
+}
+
+.step-content {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    border-radius: 15px;
+    padding: 2rem 2.2rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.step-content:hover {
+    transform: translateY(-3px);
+    border-color: rgba(102, 126, 234, 0.4);
+    box-shadow: 0 8px 30px rgba(102, 126, 234, 0.25);
+}
+
+.step-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.step-description {
+    color: #cbd5e1;
+    line-height: 1.7;
+    font-size: 1.05rem;
+    margin: 0;
+}
+
+/* Responsive alignment */
+@media (max-width: 900px) {
     .step {
-        display: flex;
+        flex-direction: column;
         align-items: flex-start;
-        margin: 2rem 0;
-        gap: 2rem;
-        animation: slideIn 0.6s ease;
+        text-align: left;
+        gap: 1rem;
     }
-    
+
     .step-number {
-        font-size: 3.5rem;
-        font-weight: 800;
-        color: rgba(255, 255, 255, 0.3);
-        min-width: 90px;
-        text-align: center;
+        font-size: 2.8rem;
+        text-align: left;
+        margin-bottom: 0.5rem;
+        justify-content: flex-start;
     }
-    
+
     .step-content {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        padding: 2rem;
-        border-radius: 15px;
-        flex: 1;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        width: 100%;
+        padding: 1.5rem;
     }
-    
-    .step-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: white;
-        margin-bottom: 0.8rem;
-    }
-    
-    .step-description {
-        color: #cbd5e1;
-        line-height: 1.7;
-        font-size: 1.05rem;
-    }
-    
+}
+
     /* Backend status - Dark Mode */
     .status-container {
         background: rgba(255, 255, 255, 0.05);
@@ -527,9 +606,9 @@ st.markdown('''
     font-weight: 800;
     letter-spacing: -1px;
 '>How It Works</h2>
-""", unsafe_allow_html=True)
+''', unsafe_allow_html=True)
 
-st.markdown("""
+st.markdown('''
 <div class="steps-container">
     <div class="step">
         <div class="step-number">01</div>
@@ -541,7 +620,6 @@ st.markdown("""
             </p>
         </div>
     </div>
-    
     <div class="step">
         <div class="step-number">02</div>
         <div class="step-content">
@@ -552,7 +630,6 @@ st.markdown("""
             </p>
         </div>
     </div>
-    
     <div class="step">
         <div class="step-number">03</div>
         <div class="step-content">
@@ -563,7 +640,6 @@ st.markdown("""
             </p>
         </div>
     </div>
-    
     <div class="step">
         <div class="step-number">04</div>
         <div class="step-content">

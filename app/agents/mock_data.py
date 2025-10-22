@@ -24,34 +24,34 @@ Explanation: nums[0] + nums[1] = 2 + 7 = 9
 **Expected Time Complexity:** O(n)
 **Expected Space Complexity:** O(n)""",
 
-    """**Coding Problem: Reverse Linked List**
+#     """**Coding Problem: Reverse Linked List**
 
-Given the head of a singly linked list, reverse the list and return the reversed list.
+# Given the head of a singly linked list, reverse the list and return the reversed list.
 
-**Constraints:**
-- The number of nodes in the list is in the range [0, 5000]
-- -5000 <= Node.val <= 5000
+# **Constraints:**
+# - The number of nodes in the list is in the range [0, 5000]
+# - -5000 <= Node.val <= 5000
 
-**Example:**
-Input: 1 -> 2 -> 3 -> 4 -> 5
-Output: 5 -> 4 -> 3 -> 2 -> 1
+# **Example:**
+# Input: 1 -> 2 -> 3 -> 4 -> 5
+# Output: 5 -> 4 -> 3 -> 2 -> 1
 
-**Expected Time Complexity:** O(n)
-**Expected Space Complexity:** O(1)"""
+# **Expected Time Complexity:** O(n)
+# **Expected Space Complexity:** O(1)"""
 ]
 
 MOCK_RESUME_QUESTIONS = [
     "Tell me about your experience with Python. What projects have you built using Python?",
-    "I see you have experience with FastAPI. Can you explain how you've used it in production?",
-    "What's the most challenging technical problem you've solved in your recent projects?",
-    "How do you handle API rate limiting in your applications?"
+    # "I see you have experience with FastAPI. Can you explain how you've used it in production?",
+    # "What's the most challenging technical problem you've solved in your recent projects?",
+    # "How do you handle API rate limiting in your applications?"
 ]
 
 MOCK_BEHAVIORAL_QUESTIONS = [
     "Tell me about a time when you had to deal with a difficult team member. How did you handle it?",
-    "Describe a situation where you had to learn a new technology quickly. What was your approach?",
-    "Tell me about a time when you made a mistake in your code that went to production. How did you handle it?",
-    "Describe a situation where you had to explain a complex technical concept to a non-technical stakeholder."
+    # "Describe a situation where you had to learn a new technology quickly. What was your approach?",
+    # "Tell me about a time when you made a mistake in your code that went to production. How did you handle it?",
+    # "Describe a situation where you had to explain a complex technical concept to a non-technical stakeholder."
 ]
 
 def mock_evaluate(question: str, answer: str) -> dict:

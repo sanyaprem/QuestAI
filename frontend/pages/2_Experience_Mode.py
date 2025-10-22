@@ -106,16 +106,25 @@ st.markdown('''
         box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
     }
     
-    /* Code editor */
+    /* Code editor - FIXED */
     .stTextArea textarea {
-        font-family: 'Consolas', 'Monaco', monospace;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
         border-radius: 10px;
-        border: 2px solid #e2e8f0;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        background: #0f172a !important;
+        color: #e2e8f0 !important;
+        font-size: 14px !important;
+        line-height: 1.5 !important;
     }
     
     .stTextArea textarea:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2) !important;
+    }
+    
+    .stTextArea label {
+        color: #cbd5e1 !important;
+        font-weight: 600 !important;
     }
     
     /* Info boxes */
@@ -173,6 +182,10 @@ if "session_id" not in st.session_state:
 
 if "current_question" not in st.session_state:
     st.session_state.current_question = None
+
+# FIXED: Initialize code editor state
+if "code_input_exp" not in st.session_state:
+    st.session_state.code_input_exp = ""
 
 # Only show upload section if interview hasn't started
 if not st.session_state.session_id:
@@ -262,40 +275,57 @@ if st.session_state.session_id and st.session_state.current_question:
     question_lower = st.session_state.current_question.lower()
     is_coding_question = any(keyword in question_lower for keyword in [
         "code", "function", "implement", "algorithm", "write a",
-        "def ", "class ", "return", "programming", "solve"
+        "def ", "class ", "return", "programming", "solve", "data structure"
     ])
     
     st.markdown("---")
     
     if is_coding_question:
-        # === CODING QUESTION - CODE EDITOR ===
+        # === CODING QUESTION - CODE EDITOR (FIXED) ===
         st.info("💻 **Coding Question Detected** - Use the code editor below")
         
         col1, col2 = st.columns([3, 1])
         
         with col2:
             language = st.selectbox(
-                "Language",
+                "Programming Language",
                 ["python", "javascript", "java", "cpp", "go", "rust"],
                 index=0,
-                key="language_selector"
+                key="language_selector_exp"
             )
+            
+            # Template button
+            if st.button("📋 Insert Template", use_container_width=True):
+                templates = {
+                    "python": "def solution():\n    # Write your solution here\n    pass\n\n# Test your solution\nif __name__ == '__main__':\n    print(solution())",
+                    "javascript": "function solution() {\n    // Write your solution here\n    \n}\n\n// Test your solution\nconsole.log(solution());",
+                    "java": "public class Solution {\n    public static void main(String[] args) {\n        // Write your solution here\n    }\n}",
+                    "cpp": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}",
+                    "go": "package main\n\nimport \"fmt\"\n\nfunc solution() {\n    // Write your solution here\n}\n\nfunc main() {\n    solution()\n}",
+                    "rust": "fn solution() {\n    // Write your solution here\n}\n\nfn main() {\n    solution();\n}"
+                }
+                st.session_state.code_input_exp = templates.get(language, "")
+                st.rerun()
         
         with col1:
-            st.markdown("**Your Code:**")
+            st.markdown("**✍️ Write Your Code:**")
         
-        # Multi-line code input with proper height
+        # FIXED: Multi-line code input with proper key and value binding
         code_answer = st.text_area(
-            "Write your code here",
-            value="",
+            "Code Editor",
+            value=st.session_state.code_input_exp,
             height=400,
             placeholder=f"# Write your {language} code here\n\ndef solution():\n    # Your solution\n    pass",
-            key="code_editor",
-            label_visibility="collapsed"
+            key="code_editor_input_exp",
+            label_visibility="collapsed",
+            help="Write your code here. The editor supports syntax highlighting."
         )
         
+        # Update session state
+        st.session_state.code_input_exp = code_answer
+        
         # Show formatted preview
-        if code_answer:
+        if code_answer and code_answer.strip():
             with st.expander("📋 Preview (how it will be submitted)", expanded=False):
                 st.code(code_answer, language=language)
         
@@ -303,7 +333,7 @@ if st.session_state.session_id and st.session_state.current_question:
         
         with col_a:
             if st.button("✅ Submit Code", type="primary", use_container_width=True, key="submit_code_btn"):
-                if not code_answer.strip():
+                if not code_answer or not code_answer.strip():
                     st.error("⚠️ Please write your code before submitting")
                     logger.warning("Empty code submission attempted")
                 else:
@@ -332,6 +362,9 @@ if st.session_state.session_id and st.session_state.current_question:
                             confirmation_text = "✅ **Answer submitted successfully!**"
                             st.session_state.chat_history.append(("assistant", confirmation_text))
                             
+                            # Clear code editor
+                            st.session_state.code_input_exp = ""
+                            
                             if is_done:
                                 logger.info("Interview completed")
                                 st.session_state.chat_history.append(("assistant", "🎉 **Interview Completed!** Click below to view your detailed report."))
@@ -351,12 +384,14 @@ if st.session_state.session_id and st.session_state.current_question:
         
         with col_b:
             if st.button("🗑️ Clear", use_container_width=True, key="clear_code_btn"):
+                st.session_state.code_input_exp = ""
                 st.rerun()
         
         with col_c:
             if st.button("⏭️ Skip", use_container_width=True, key="skip_code_btn"):
                 logger.info("User skipped question")
                 st.session_state.chat_history.append(("user", "[Skipped]"))
+                st.session_state.code_input_exp = ""
                 try:
                     res = requests.post(f"{BACKEND_URL}/submit_answer", json={
                         "session_id": st.session_state.session_id,
@@ -410,7 +445,7 @@ if st.session_state.session_id and st.session_state.current_question:
 
                     if is_done:
                         logger.info("Interview completed")
-                        st.session_state.chat_history.append(("assistant", "🎉 **Interview Completed!** Click below to view your detailed report."))
+                        st.session_state.chat_history.append(("assistant", "🎉 **Interview Completed!** View your report in the Reports page."))
                         st.session_state.current_question = None
                     elif next_q:
                         logger.info("Next question")
@@ -424,146 +459,5 @@ if st.session_state.session_id and st.session_state.current_question:
                 except Exception as e:
                     logger.error(f"Error: {str(e)}", exc_info=True)
                     st.error(f"❌ Error: {str(e)}")
-
-
-# === REPORT SECTION ===
-if st.session_state.session_id and st.session_state.current_question is None:
-    st.markdown("---")
-    st.markdown("### 📊 Your Interview Report")
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        if st.button("📄 Generate Final Report", type="primary", use_container_width=True):
-            logger.info(f"Generating report for session: {st.session_state.session_id}")
-            
-            with st.spinner("📝 Generating your comprehensive report..."):
-                try:
-                    res = requests.get(
-                        f"{BACKEND_URL}/report",
-                        params={"session_id": st.session_state.session_id},
-                        timeout=60
-                    )
-                    
-                    if res.status_code == 200:
-                        report = res.json()
-                        logger.info("Report fetched successfully")
-                        
-                        st.success("✅ Report Generated Successfully!")
-                        
-                        # Display report
-                        report_data = report.get("report", {})
-                        
-                        st.markdown("### 📈 Interview Summary")
-                        
-                        if isinstance(report_data, dict):
-                            col_a, col_b, col_c = st.columns(3)
-                            
-                            with col_a:
-                                if "strengths" in report_data:
-                                    with st.expander("💪 Strengths", expanded=True):
-                                        strengths = report_data.get("strengths", "N/A")
-                                        if isinstance(strengths, list):
-                                            for strength in strengths:
-                                                st.success(f"✓ {strength}")
-                                        else:
-                                            st.write(strengths)
-                            
-                            with col_b:
-                                if "weaknesses" in report_data:
-                                    with st.expander("⚠️ Areas for Improvement"):
-                                        weaknesses = report_data.get("weaknesses", "N/A")
-                                        if isinstance(weaknesses, list):
-                                            for weakness in weaknesses:
-                                                st.warning(f"• {weakness}")
-                                        else:
-                                            st.write(weaknesses)
-                            
-                            with col_c:
-                                if "recommendations" in report_data:
-                                    with st.expander("📋 Recommendations"):
-                                        recommendations = report_data.get("recommendations", "N/A")
-                                        if isinstance(recommendations, list):
-                                            for rec in recommendations:
-                                                st.info(f"→ {rec}")
-                                        else:
-                                            st.write(recommendations)
-                        else:
-                            st.markdown(str(report_data))
-                        
-                        st.markdown("---")
-                        st.markdown("### 📝 Detailed Q&A Review with Evaluations")
-                        
-                        for idx, ans in enumerate(report.get("answers", []), 1):
-                            with st.expander(f"Question {idx}: {ans['question'][:80]}..."):
-                                st.markdown("**❓ Question:**")
-                                st.info(ans['question'])
-                                
-                                st.markdown("**💬 Your Answer:**")
-                                st.text_area("", ans['answer'], height=150, disabled=True, key=f"answer_{idx}")
-                                
-                                st.markdown("**📊 Evaluation:**")
-                                eval_data = ans['evaluation']
-                                if isinstance(eval_data, dict):
-                                    metric_col1, metric_col2 = st.columns([1, 3])
-                                    with metric_col1:
-                                        score = eval_data.get('score', 'N/A')
-                                        st.metric("Score", f"{score}/10")
-                                    with metric_col2:
-                                        st.write(f"**Feedback:** {eval_data.get('feedback', 'No feedback')}")
-                                    
-                                    if eval_data.get('recommendations'):
-                                        st.markdown("**💡 Recommendations:**")
-                                        for rec in eval_data['recommendations']:
-                                            st.write(f"- {rec}")
-                                else:
-                                    st.write(eval_data)
-                        
-                        st.markdown("---")
-                        
-                        download_report = f'''
-QuestAI Interview Report
-========================
-Session ID: {st.session_state.session_id}
-Mode: Experience Mode
-
-OVERALL SUMMARY
-===============
-{report_data if isinstance(report_data, str) else str(report_data)}
-
-DETAILED Q&A WITH EVALUATIONS
-==============================
-'''
-                        for idx, ans in enumerate(report.get("answers", []), 1):
-                            download_report += f"\n\n{'='*60}\n"
-                            download_report += f"Question {idx}:\n{ans['question']}\n\n"
-                            download_report += f"Your Answer:\n{ans['answer']}\n\n"
-                            download_report += f"Evaluation:\n{ans['evaluation']}\n"
-                            download_report += f"{'='*60}\n"
-                        
-                        st.download_button(
-                            label="📥 Download Report as Text",
-                            data=download_report,
-                            file_name=f"interview_report_{st.session_state.session_id[:8]}.txt",
-                            mime="text/plain",
-                            use_container_width=True
-                        )
-                        
-                        logger.info("Report displayed successfully")
-                        
-                    else:
-                        logger.error(f"Failed to fetch report: {res.status_code}")
-                        st.error(f"❌ Failed to fetch report: {res.status_code}")
-                
-                except Exception as e:
-                    logger.error(f"Error fetching report: {str(e)}", exc_info=True)
-                    st.error(f"❌ Error: {str(e)}")
-        
-        if st.button("🔄 Start New Interview", use_container_width=True):
-            logger.info("User clicked Start New Interview")
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            logger.info("Session state cleared")
-            st.rerun()
 
 logger.info("Experience Mode page rendered")
