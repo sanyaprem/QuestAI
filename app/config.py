@@ -36,7 +36,6 @@
 
 
 # app/config.py
-# app/config.py
 import os
 import sys
 import logging
@@ -49,7 +48,7 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 load_dotenv()
 
 # ============================================
-# LOGGING SETUP (ROBUST VERSION)
+# LOGGING SETUP
 # ============================================
 
 def setup_logging():
@@ -102,11 +101,16 @@ LOG_FILE_PATH = setup_logging()
 logger = logging.getLogger(__name__)
 
 # ============================================
-# REST OF YOUR CONFIG
+# CONFIGURATION
 # ============================================
 
 class Config:
     """Application configuration with automatic API failover"""
+    
+    # ============================================
+    # MOCK MODE (NEW!)
+    # ============================================
+    MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() == "true"
     
     # API Keys
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -115,16 +119,21 @@ class Config:
     # Model Configuration
     PRIMARY_PROVIDER = "gemini"
     GEMINI_MODEL = "gemini-2.5-flash"
-    OPENROUTER_MODEL = "deepseek/deepseek-chat-v3.1:free"
+    
+    BACKUP_PROVIDER = "openrouter"
+    OPENROUTER_MODEL = "tngtech/deepseek-r1t2-chimera:free"
     OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
     
+    # General Settings
     TEMPERATURE = 0.7
     MAX_ROUND_ROBIN_TURNS = 3
     TIMEOUT = 300
     
+    # Track current provider
     CURRENT_PROVIDER = PRIMARY_PROVIDER
     FAILOVER_COUNT = 0
     
+    # Interview Configuration
     ROUNDS = {
         1: "Coding",
         2: "Resume",
@@ -136,22 +145,41 @@ class Config:
         """Validate configuration"""
         logger.info("🔍 Validating configuration...")
         
+        if cls.MOCK_MODE:
+            logger.warning("⚠️ MOCK MODE ENABLED - Using dummy data, no API calls!")
+            logger.info("✅ Configuration validated (Mock Mode)")
+            return
+        
         has_gemini = bool(cls.GEMINI_API_KEY)
         has_openrouter = bool(cls.OPENROUTER_API_KEY)
         
         if not has_gemini and not has_openrouter:
             logger.critical("❌ CRITICAL: No API keys found!")
-            raise ValueError("At least one API key must be set")
+            raise ValueError("At least one API key (GEMINI_API_KEY or OPENROUTER_API_KEY) must be set")
         
         if has_gemini:
             logger.info("✅ Gemini API key found")
+        else:
+            logger.warning("⚠️ Gemini API key not found")
+        
         if has_openrouter:
             logger.info("✅ OpenRouter API key found")
+        else:
+            logger.warning("⚠️ OpenRouter API key not found")
         
         if has_gemini and has_openrouter:
             logger.info("🎉 Both API keys available - Failover enabled!")
+        elif has_gemini:
+            logger.warning("⚠️ Only Gemini available - No failover backup")
+        else:
+            logger.warning("⚠️ Only OpenRouter available - No failover backup")
         
-        logger.info("✅ Configuration validated")
+        logger.info("✅ Configuration validated successfully")
+
+
+# ============================================
+# MODEL CLIENT FACTORY
+# ============================================
 
 class ModelClientFactory:
     """Factory to create and manage model clients with failover"""
@@ -161,23 +189,34 @@ class ModelClientFactory:
     
     @classmethod
     def create_client(cls, provider: Optional[str] = None):
-        """Create a model client"""
+        """Create a model client for the specified provider"""
+        if Config.MOCK_MODE:
+            logger.info("🎭 Mock mode enabled - returning None client")
+            return None
+        
         if provider is None:
             provider = Config.CURRENT_PROVIDER
         
         logger.info(f"🔧 Creating model client for: {provider}")
         
-        if provider == "gemini":
-            return cls._create_gemini_client()
-        elif provider == "openrouter":
-            return cls._create_openrouter_client()
-        else:
-            raise ValueError(f"Unknown provider: {provider}")
+        try:
+            if provider == "gemini":
+                return cls._create_gemini_client()
+            elif provider == "openrouter":
+                return cls._create_openrouter_client()
+            else:
+                logger.error(f"❌ Unknown provider: {provider}")
+                raise ValueError(f"Unknown provider: {provider}")
+        
+        except Exception as e:
+            logger.error(f"❌ Failed to create {provider} client: {str(e)}")
+            raise
     
     @classmethod
     def _create_gemini_client(cls):
         """Create Gemini client"""
         if not Config.GEMINI_API_KEY:
+            logger.error("❌ Cannot create Gemini client - API key missing")
             raise ValueError("GEMINI_API_KEY not configured")
         
         logger.info(f"✅ Creating Gemini client: {Config.GEMINI_MODEL}")
@@ -187,13 +226,14 @@ class ModelClientFactory:
             api_key=Config.GEMINI_API_KEY
         )
         
-        logger.info("✅ Gemini client created")
+        logger.info("✅ Gemini client created successfully")
         return client
     
     @classmethod
     def _create_openrouter_client(cls):
         """Create OpenRouter client"""
         if not Config.OPENROUTER_API_KEY:
+            logger.error("❌ Cannot create OpenRouter client - API key missing")
             raise ValueError("OPENROUTER_API_KEY not configured")
         
         logger.info(f"✅ Creating OpenRouter client: {Config.OPENROUTER_MODEL}")
@@ -210,67 +250,119 @@ class ModelClientFactory:
             }
         )
         
-        logger.info("✅ OpenRouter client created")
+        logger.info("✅ OpenRouter client created successfully")
         return client
     
     @classmethod
     def get_client(cls):
-        """Get current active client"""
+        """Get the current active client"""
+        if Config.MOCK_MODE:
+            logger.info("🎭 Mock mode - returning None client")
+            return None
+        
         if cls._current_client is None:
-            logger.info("📡 Creating initial client...")
+            logger.info("📡 No active client found, creating one...")
             cls._current_client = cls.create_client()
+        
         return cls._current_client
     
     @classmethod
     def switch_to_backup(cls, error_msg: str = ""):
-        """Switch to backup provider"""
+        """Switch from primary to backup provider (failover)"""
+        if Config.MOCK_MODE:
+            logger.info("🎭 Mock mode - simulating failover")
+            return None
+        
         current = Config.CURRENT_PROVIDER
         
         logger.warning("⚠️" + "=" * 60)
-        logger.warning("⚠️ FAILOVER TRIGGERED!")
-        logger.warning(f"⚠️ Current: {current}, Error: {error_msg}")
+        logger.warning(f"⚠️ FAILOVER TRIGGERED!")
+        logger.warning(f"⚠️ Current provider: {current}")
+        logger.warning(f"⚠️ Error: {error_msg}")
         logger.warning("⚠️" + "=" * 60)
         
-        backup = "openrouter" if current == "gemini" else "gemini"
+        # Determine backup provider
+        if current == "gemini":
+            backup = "openrouter"
+        else:
+            backup = "gemini"
         
+        # Check if backup is available
         if backup == "gemini" and not Config.GEMINI_API_KEY:
-            raise ValueError("Cannot failover to Gemini - no API key")
-        if backup == "openrouter" and not Config.OPENROUTER_API_KEY:
-            raise ValueError("Cannot failover to OpenRouter - no API key")
+            logger.critical("❌ CRITICAL: Cannot failover to Gemini - No API key!")
+            raise ValueError("Failover failed: Gemini API key not configured")
         
+        if backup == "openrouter" and not Config.OPENROUTER_API_KEY:
+            logger.critical("❌ CRITICAL: Cannot failover to OpenRouter - No API key!")
+            raise ValueError("Failover failed: OpenRouter API key not configured")
+        
+        # Perform the switch
         logger.info(f"🔄 Switching from {current} to {backup}...")
         
         Config.CURRENT_PROVIDER = backup
         Config.FAILOVER_COUNT += 1
-        cls._current_client = cls.create_client(backup)
         
-        cls._client_history.append({
-            "from": current,
-            "to": backup,
-            "reason": error_msg,
-            "count": Config.FAILOVER_COUNT
-        })
+        # Create new client
+        try:
+            cls._current_client = cls.create_client(backup)
+            
+            # Log the switch
+            switch_info = {
+                "from": current,
+                "to": backup,
+                "reason": error_msg,
+                "failover_number": Config.FAILOVER_COUNT
+            }
+            cls._client_history.append(switch_info)
+            
+            logger.info("✅" + "=" * 60)
+            logger.info(f"✅ FAILOVER SUCCESSFUL!")
+            logger.info(f"✅ Now using: {backup}")
+            logger.info(f"✅ Failover count: {Config.FAILOVER_COUNT}")
+            logger.info("✅" + "=" * 60)
+            
+            return cls._current_client
         
-        logger.info("✅" + "=" * 60)
-        logger.info(f"✅ Failover successful! Now using: {backup}")
-        logger.info("✅" + "=" * 60)
-        
-        return cls._current_client
+        except Exception as e:
+            logger.critical(f"❌ FAILOVER FAILED: {str(e)}")
+            raise
     
     @classmethod
     def get_status(cls):
-        """Get client status"""
+        """Get current status of model clients"""
         return {
+            "mock_mode": Config.MOCK_MODE,
             "current_provider": Config.CURRENT_PROVIDER,
             "failover_count": Config.FAILOVER_COUNT,
-            "has_gemini": bool(Config.GEMINI_API_KEY),
-            "has_openrouter": bool(Config.OPENROUTER_API_KEY),
-            "history": cls._client_history
+            "has_gemini_key": bool(Config.GEMINI_API_KEY),
+            "has_openrouter_key": bool(Config.OPENROUTER_API_KEY),
+            "switch_history": cls._client_history
         }
 
-# Initialize
+
+# ============================================
+# INITIALIZE ON IMPORT
+# ============================================
+
+logger.info("=" * 70)
 logger.info("🚀 QuestAI Configuration Loading...")
+logger.info("=" * 70)
+
+# Validate configuration
 Config.validate()
-logger.info(f"📡 Initializing primary provider: {Config.CURRENT_PROVIDER}")
-model_client = ModelClientFactory.get_client()
+
+if not Config.MOCK_MODE:
+    # Create initial client
+    logger.info(f"📡 Initializing primary provider: {Config.CURRENT_PROVIDER}")
+    model_client = ModelClientFactory.get_client()
+else:
+    logger.warning("🎭 Mock mode enabled - Skipping client creation")
+    model_client = None
+
+logger.info("=" * 70)
 logger.info("✅ Configuration loaded successfully!")
+if Config.MOCK_MODE:
+    logger.warning("🎭 Running in MOCK MODE")
+else:
+    logger.info(f"✅ Active provider: {Config.CURRENT_PROVIDER}")
+logger.info("=" * 70)

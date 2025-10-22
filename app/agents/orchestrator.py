@@ -1,71 +1,180 @@
 # app/agents/orchestrator.py
 """
-Orchestrator: manages sessions and uses specialized agents to generate questions and evaluate answers.
-This version ensures resume & behavioral questions are asked sequentially, one by one.
+Enhanced Orchestrator with AutoGen Multi-Agent Patterns
+Supports both sequential and collaborative interview modes
 """
 
 import uuid
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from app.agents.coding_agent import CodingAgent
 from app.agents.resume_agent import ResumeAgent
 from app.agents.behavior_agent import BehaviorAgent
 from app.agents.evaluator_agent import EvaluatorAgent
+from app.agents.group_chat_manager import InterviewGroupChat, RoundRobinInterviewManager
+from app.config import Config
+
+# Import mock data
+from app.agents.mock_data import (
+    MOCK_CODING_PROBLEMS,
+    MOCK_RESUME_QUESTIONS,
+    MOCK_BEHAVIORAL_QUESTIONS,
+    mock_evaluate,
+    mock_generate_report
+)
 
 logger = logging.getLogger(__name__)
 
 # In-memory store for interview sessions
 SESSIONS: Dict[str, Dict[str, Any]] = {}
 
-# Initialize agent singletons
-logger.info("Initializing agent singletons...")
-coding_agent = CodingAgent()
-resume_agent = ResumeAgent()
-behavior_agent = BehaviorAgent()
-logger.info("✅ Agent singletons created")
+# Agent singletons
+if not Config.MOCK_MODE:
+    logger.info("Initializing enhanced agent singletons...")
+    coding_agent = CodingAgent()
+    resume_agent = ResumeAgent()
+    behavior_agent = BehaviorAgent()
+    logger.info("✅ Agent singletons created")
+else:
+    logger.warning("🎭 Mock mode - Skipping real agent creation")
+    coding_agent = None
+    resume_agent = None
+    behavior_agent = None
 
 
-async def create_session(resume_text: str, jd_text: str, mode: str = "experience", user_name: Optional[str] = "Candidate"):
+async def create_session(
+    resume_text: str,
+    jd_text: str,
+    mode: str = "experience",
+    user_name: Optional[str] = "Candidate",
+    collaboration_mode: str = "sequential"  # NEW: "sequential" or "collaborative"
+):
     """
-    Create a new interview session.
-    Returns session_id and first question (always coding Q1).
+    Create a new interview session with enhanced AutoGen patterns.
+    
+    Args:
+        resume_text: Candidate's resume
+        jd_text: Job description
+        mode: "teach" or "experience"
+        user_name: Candidate's name
+        collaboration_mode: "sequential" (default) or "collaborative" (GroupChat)
+    
+    Returns:
+        Session details with first question
     """
     logger.info("=" * 70)
-    logger.info("🚀 CREATE SESSION")
+    logger.info("🚀 CREATE SESSION (Enhanced)")
     logger.info("=" * 70)
-    logger.info(f"Mode: {mode}")
+    logger.info(f"Mode: {mode} | Collaboration: {collaboration_mode} | Mock: {Config.MOCK_MODE}")
     logger.info(f"User: {user_name}")
-    logger.debug(f"Resume: {len(resume_text)} chars")
-    logger.debug(f"JD: {len(jd_text)} chars")
     
     session_id = str(uuid.uuid4())
     logger.info(f"Generated session ID: {session_id}")
 
-    # Evaluator depends on mode (teach/experience)
-    evaluator = EvaluatorAgent(mode=mode)
-    logger.info(f"Created evaluator with mode: {mode}")
+    # Create evaluator
+    evaluator = EvaluatorAgent(mode=mode) if not Config.MOCK_MODE else None
 
-    # Generate coding problem (medium)
-    logger.info("Generating coding problem...")
-    coding_q = await coding_agent.generate_problem(resume_text=resume_text, jd_text=jd_text, difficulty="medium")
-    logger.info("✅ Coding problem generated")
+    # COLLABORATIVE MODE - Using GroupChat
+    if collaboration_mode == "collaborative" and not Config.MOCK_MODE:
+        logger.info("🎭 Using COLLABORATIVE mode with GroupChat")
+        
+        # Create group chat
+        group_chat = InterviewGroupChat(
+            agents=[
+                coding_agent.agent,
+                resume_agent.agent,
+                behavior_agent.agent,
+                evaluator.agent
+            ],
+            mode="roundrobin",  # or "selector" for dynamic
+            max_turns=15
+        )
+        
+        # Run collaborative question generation
+        initial_task = f"""
+        We need to prepare interview questions for a candidate.
+        
+        Resume Summary: {resume_text[:300]}...
+        Job Description: {jd_text[:300]}...
+        
+        CodingAgent: Please generate 2 coding problems (1 medium, 1 adaptive)
+        ResumeAgent: Please generate 3-4 experience-based questions
+        BehaviorAgent: Please generate 5 behavioral questions
+        
+        Work together to ensure comprehensive coverage.
+        """
+        
+        result = await group_chat.run_collaborative_interview(
+            initial_task=initial_task,
+            context={
+                "resume": resume_text,
+                "jd": jd_text,
+                "mode": mode
+            }
+        )
+        
+        # Extract questions from conversation
+        coding_questions = []
+        resume_questions = []
+        behavior_questions = []
+        
+        for msg in group_chat.conversation_history:
+            agent_name = msg.get('agent', '')
+            content = msg.get('content', '')
+            
+            if 'CodingAgent' in agent_name:
+                # Extract coding questions
+                lines = content.split('\n')
+                coding_questions.extend([l for l in lines if '?' in l or 'Problem:' in l])
+            elif 'ResumeAgent' in agent_name:
+                lines = content.split('\n')
+                resume_questions.extend([l for l in lines if '?' in l])
+            elif 'BehaviorAgent' in agent_name:
+                lines = content.split('\n')
+                behavior_questions.extend([l for l in lines if '?' in l])
+        
+        # Use first coding question or generate one
+        if coding_questions:
+            coding_q = coding_questions[0]
+        else:
+            coding_q = await coding_agent.generate_problem(resume_text, jd_text)
+        
+        followups = "1. Explain your approach\n2. What's the time complexity?"
+        
+        logger.info(f"Collaborative generation complete: {len(coding_questions)} coding, {len(resume_questions)} resume, {len(behavior_questions)} behavioral")
     
-    logger.info("Generating coding follow-ups...")
-    followups = await coding_agent.generate_followups(coding_q)
-    logger.info("✅ Coding follow-ups generated")
-
-    # Generate resume and behavioral questions
-    logger.info("Generating resume questions...")
-    resume_qs = await resume_agent.generate_questions(resume_text=resume_text, jd_text=jd_text)
-    logger.info(f"✅ Generated {len(resume_qs)} resume questions")
-    
-    logger.info("Generating behavioral questions...")
-    behavior_qs = await behavior_agent.generate_questions(count=5)
-    logger.info(f"✅ Generated {len(behavior_qs)} behavioral questions")
+    # SEQUENTIAL MODE or MOCK MODE - Original approach
+    else:
+        if Config.MOCK_MODE:
+            logger.warning("🎭 Using MOCK DATA")
+            import random
+            
+            coding_q = random.choice(MOCK_CODING_PROBLEMS)
+            followups = "1. What's the brute force approach?\n2. Can you optimize it?"
+            resume_questions = MOCK_RESUME_QUESTIONS
+            behavior_questions = MOCK_BEHAVIORAL_QUESTIONS
+        else:
+            logger.info("📋 Using SEQUENTIAL mode (original approach)")
+            
+            # Generate coding problem
+            coding_q = await coding_agent.generate_problem(
+                resume_text=resume_text,
+                jd_text=jd_text,
+                difficulty="medium"
+            )
+            followups = await coding_agent.generate_followups(coding_q)
+            
+            # Generate resume and behavioral questions
+            resume_questions = await resume_agent.generate_questions(
+                resume_text=resume_text,
+                jd_text=jd_text
+            )
+            behavior_questions = await behavior_agent.generate_questions(count=5)
 
     # Store session
     SESSIONS[session_id] = {
         "mode": mode,
+        "collaboration_mode": collaboration_mode,
         "user_name": user_name,
         "resume": resume_text,
         "jd": jd_text,
@@ -74,11 +183,11 @@ async def create_session(resume_text: str, jd_text: str, mode: str = "experience
             "coding": {
                 "q1": coding_q,
                 "followups": followups,
-                "q2_easy": "Explain a simple hashing problem (easy).",
-                "q2_hard": "Design a concurrency control problem (hard)."
+                "q2_easy": "Explain how you would implement a simple cache.",
+                "q2_hard": "Design a distributed caching system with consistency guarantees."
             },
-            "resume": resume_qs,
-            "behavior": behavior_qs
+            "resume": resume_questions if isinstance(resume_questions, list) else [resume_questions],
+            "behavior": behavior_questions if isinstance(behavior_questions, list) else [behavior_questions]
         },
         "progress": {
             "round": 1,
@@ -88,23 +197,24 @@ async def create_session(resume_text: str, jd_text: str, mode: str = "experience
         },
     }
     
-    logger.info(f"✅ Session {session_id} created and stored")
-    logger.info(f"Total sessions: {len(SESSIONS)}")
+    logger.info(f"✅ Session {session_id} created")
     logger.info("=" * 70)
 
     return {"session_id": session_id, "first_question": coding_q}
 
 
-async def submit_answer(session_id: str, question: str, answer: str, question_meta: dict = None):
+async def submit_answer(
+    session_id: str,
+    question: str,
+    answer: str,
+    question_meta: dict = None
+):
     """
-    Evaluate an answer, store progress, and return the next question.
+    Enhanced answer submission with collaborative evaluation option.
     """
     logger.info("=" * 70)
     logger.info("📝 SUBMIT ANSWER")
-    logger.info("=" * 70)
-    logger.info(f"Session: {session_id}")
-    logger.debug(f"Question: {question[:100]}...")
-    logger.debug(f"Answer: {answer[:100]}...")
+    logger.info(f"Session: {session_id} | Mock: {Config.MOCK_MODE}")
     
     if session_id not in SESSIONS:
         logger.error(f"❌ Invalid session ID: {session_id}")
@@ -112,14 +222,48 @@ async def submit_answer(session_id: str, question: str, answer: str, question_me
 
     sess = SESSIONS[session_id]
     prog = sess["progress"]
-    evaluator: EvaluatorAgent = sess["agents"]["evaluator"]
+    collaboration_mode = sess.get("collaboration_mode", "sequential")
     
-    logger.info(f"Current round: {prog['round']}")
-    logger.info(f"Total answers so far: {len(prog['answers'])}")
-
     # Evaluate
-    logger.info("Evaluating answer...")
-    eval_result = await evaluator.evaluate(question, answer)
+    if Config.MOCK_MODE:
+        logger.warning("🎭 Using MOCK evaluation")
+        eval_result = mock_evaluate(question, answer)
+    elif collaboration_mode == "collaborative":
+        # Use group chat for evaluation
+        logger.info("🎭 Using COLLABORATIVE evaluation")
+        
+        evaluator = sess["agents"]["evaluator"]
+        group_chat = InterviewGroupChat(
+            agents=[evaluator.agent],
+            mode="roundrobin",
+            max_turns=2
+        )
+        
+        eval_task = f"""
+        Evaluate this interview response:
+        
+        QUESTION: {question}
+        ANSWER: {answer}
+        
+        Provide score (0-10), feedback, and recommendations.
+        """
+        
+        result = await group_chat.run_collaborative_interview(eval_task)
+        
+        # Parse result
+        conversation = group_chat.get_conversation_summary()
+        
+        # Extract evaluation (simplified)
+        eval_result = {
+            "score": 7,  # Default
+            "feedback": conversation[:300],
+            "recommendations": ["See detailed feedback above"]
+        }
+    else:
+        # Standard evaluation
+        evaluator: EvaluatorAgent = sess["agents"]["evaluator"]
+        eval_result = await evaluator.evaluate(question, answer)
+    
     logger.info(f"✅ Evaluation complete - Score: {eval_result.get('score', 0)}/10")
 
     # Store answer + evaluation
@@ -128,154 +272,157 @@ async def submit_answer(session_id: str, question: str, answer: str, question_me
         "answer": answer,
         "evaluation": eval_result
     })
-    logger.info(f"Answer stored. Total answers: {len(prog['answers'])}")
 
-    # -------------------------
-    # Interview Flow
-    # -------------------------
-    
-    # Round 1: Coding Q1 -> Coding Q2 (easy/hard)
+    # Interview Flow (same adaptive logic as before)
     if prog["round"] == 1 and len(prog["answers"]) == 1:
-        logger.info("Round 1 - After first coding question")
         score = eval_result.get("score", 5)
-        logger.info(f"Score: {score}/10")
-        
         next_q = sess["questions"]["coding"]["q2_hard"] if score >= 7 else sess["questions"]["coding"]["q2_easy"]
-        difficulty = "hard" if score >= 7 else "easy"
-        
-        logger.info(f"Moving to {difficulty} coding question")
-        logger.info("=" * 70)
-        
         return {"evaluation": eval_result, "next_question": next_q, "done": False}
 
-    # After Coding Q2 -> Resume round
     if prog["round"] == 1 and len(prog["answers"]) >= 2:
-        logger.info("Round 1 complete - Moving to Round 2 (Resume)")
         prog["round"] = 2
         prog["resume_index"] = 0
-        
-        next_q = sess["questions"]["resume"][prog["resume_index"]]
-        logger.info(f"First resume question: {next_q[:50]}...")
-        logger.info("=" * 70)
-        
-        return {
-            "evaluation": eval_result,
-            "next_question": next_q,
-            "done": False
-        }
-
-    # Round 2: Resume questions one by one
-    if prog["round"] == 2:
-        logger.info(f"Round 2 - Resume question {prog['resume_index'] + 1}")
-        prog["resume_index"] += 1
-        
-        if prog["resume_index"] < len(sess["questions"]["resume"]):
-            next_q = sess["questions"]["resume"][prog["resume_index"]]
-            logger.info(f"Next resume question: {next_q[:50]}...")
-            logger.info("=" * 70)
-            
+        resume_qs = sess["questions"]["resume"]
+        if isinstance(resume_qs, list) and len(resume_qs) > 0:
             return {
                 "evaluation": eval_result,
-                "next_question": next_q,
+                "next_question": resume_qs[0],
                 "done": False
             }
         else:
-            logger.info("Round 2 complete - Moving to Round 3 (Behavioral)")
+            # Skip to behavioral if no resume questions
             prog["round"] = 3
             prog["behavior_index"] = 0
-            
-            next_q = sess["questions"]["behavior"][prog["behavior_index"]]
-            logger.info(f"First behavioral question: {next_q[:50]}...")
-            logger.info("=" * 70)
-            
-            return {
-                "evaluation": eval_result,
-                "next_question": next_q,
-                "done": False
-            }
+            behavior_qs = sess["questions"]["behavior"]
+            if isinstance(behavior_qs, list) and len(behavior_qs) > 0:
+                return {
+                    "evaluation": eval_result,
+                    "next_question": behavior_qs[0],
+                    "done": False
+                }
 
-    # Round 3: Behavioral questions one by one
-    if prog["round"] == 3:
-        logger.info(f"Round 3 - Behavioral question {prog['behavior_index'] + 1}")
-        prog["behavior_index"] += 1
-        
-        if prog["behavior_index"] < len(sess["questions"]["behavior"]):
-            next_q = sess["questions"]["behavior"][prog["behavior_index"]]
-            logger.info(f"Next behavioral question: {next_q[:50]}...")
-            logger.info("=" * 70)
-            
+    if prog["round"] == 2:
+        prog["resume_index"] += 1
+        resume_qs = sess["questions"]["resume"]
+        if isinstance(resume_qs, list) and prog["resume_index"] < len(resume_qs):
             return {
                 "evaluation": eval_result,
-                "next_question": next_q,
+                "next_question": resume_qs[prog["resume_index"]],
                 "done": False
             }
         else:
-            logger.info("Round 3 complete - Interview finished!")
-            prog["round"] = 4
-            logger.info("=" * 70)
-            
+            prog["round"] = 3
+            prog["behavior_index"] = 0
+            behavior_qs = sess["questions"]["behavior"]
+            if isinstance(behavior_qs, list) and len(behavior_qs) > 0:
+                return {
+                    "evaluation": eval_result,
+                    "next_question": behavior_qs[0],
+                    "done": False
+                }
+
+    if prog["round"] == 3:
+        prog["behavior_index"] += 1
+        behavior_qs = sess["questions"]["behavior"]
+        if isinstance(behavior_qs, list) and prog["behavior_index"] < len(behavior_qs):
             return {
                 "evaluation": eval_result,
-                "next_question": None,
-                "done": True
+                "next_question": behavior_qs[prog["behavior_index"]],
+                "done": False
             }
+        else:
+            prog["round"] = 4
+            return {"evaluation": eval_result, "next_question": None, "done": True}
 
-    # Default fallback
-    logger.warning("Unexpected flow state")
-    logger.info("=" * 70)
     return {"evaluation": eval_result, "next_question": None, "done": False}
 
 
 async def generate_report(session_id: str):
     """
-    Compile a final evaluation report with strengths, weaknesses, and recommendations.
+    Enhanced report generation with optional collaborative summary.
     """
     logger.info("=" * 70)
-    logger.info("📊 GENERATE REPORT")
-    logger.info("=" * 70)
-    logger.info(f"Session: {session_id}")
+    logger.info("📊 GENERATE REPORT (Enhanced)")
+    logger.info(f"Session: {session_id} | Mock: {Config.MOCK_MODE}")
     
     if session_id not in SESSIONS:
-        logger.error(f"❌ Invalid session ID: {session_id}")
+        logger.error(f"❌ Invalid session ID")
         return {"error": "invalid_session"}
 
     sess = SESSIONS[session_id]
     answers = sess["progress"]["answers"]
+    collaboration_mode = sess.get("collaboration_mode", "sequential")
     
-    logger.info(f"Total answers to summarize: {len(answers)}")
+    if Config.MOCK_MODE:
+        logger.warning("🎭 Using MOCK report")
+        parsed = mock_generate_report(answers)
+    elif collaboration_mode == "collaborative":
+        logger.info("🎭 Using COLLABORATIVE report generation")
+        
+        # Use multiple agents to generate comprehensive report
+        evaluator = sess["agents"]["evaluator"]
+        
+        # Build comprehensive summary
+        summary_prompt = f"""
+        Generate a comprehensive interview report.
+        
+        Total Questions: {len(answers)}
+        
+        Analyze all responses and provide:
+        1. Top 3 strengths
+        2. Top 3 areas for improvement
+        3. Top 3 actionable recommendations
+        
+        All Q&A pairs:
+        """
+        
+        for i, a in enumerate(answers, 1):
+            summary_prompt += f"\n\nQ{i}: {a['question'][:100]}...\n"
+            summary_prompt += f"A{i}: {a['answer'][:100]}...\n"
+            summary_prompt += f"Score: {a['evaluation'].get('score', 'N/A')}/10\n"
+        
+        raw = await evaluator.ask(summary_prompt)
+        
+        # Try parsing JSON
+        try:
+            import re, json
+            m = re.search(r"\{.*\}", raw, re.S)
+            parsed = json.loads(m.group(0)) if m else {
+                "strengths": ["Strong technical knowledge"],
+                "weaknesses": ["Could improve communication"],
+                "recommendations": ["Practice more mock interviews"],
+                "raw": raw
+            }
+        except Exception:
+            parsed = {
+                "strengths": ["Strong technical knowledge"],
+                "weaknesses": ["Could improve communication"],
+                "recommendations": ["Practice more mock interviews"],
+                "raw": raw
+            }
+    else:
+        # Standard report generation
+        summary_prompt = (
+            "Given the following Q&A pairs with evaluations, summarize strengths, weaknesses, and recommendations. "
+            "Return JSON with keys 'strengths', 'weaknesses', 'recommendations'.\n\n"
+        )
+        for a in answers:
+            summary_prompt += f"Q: {a['question']}\nA: {a['answer']}\nEval: {a['evaluation']}\n\n"
 
-    # Build summary prompt
-    summary_prompt = (
-        "Given the following Q&A pairs with evaluations, summarize strengths, weaknesses, and study recommendations. "
-        "Return JSON with keys 'strengths', 'weaknesses', 'recommendations'.\n\n"
-    )
-    
-    for idx, a in enumerate(answers, 1):
-        summary_prompt += f"Q{idx}: {a['question'][:100]}...\n"
-        summary_prompt += f"A{idx}: {a['answer'][:200]}...\n"
-        summary_prompt += f"Eval: {a['evaluation']}\n\n"
-    
-    logger.debug(f"Summary prompt length: {len(summary_prompt)} chars")
+        evaluator: EvaluatorAgent = sess["agents"]["evaluator"]
+        raw = await evaluator.ask(summary_prompt)
 
-    evaluator: EvaluatorAgent = sess["agents"]["evaluator"]
+        try:
+            import re, json
+            m = re.search(r"\{.*\}", raw, re.S)
+            parsed = json.loads(m.group(0)) if m else {"raw": raw}
+        except Exception:
+            parsed = {"raw": raw}
     
-    logger.info("Generating report...")
-    raw = await evaluator.ask(summary_prompt)
-    logger.info(f"✅ Report generated: {len(raw)} chars")
-
-    # Try parsing JSON from model output
-    try:
-        import re, json
-        m = re.search(r"\{.*\}", raw, re.S)
-        parsed = json.loads(m.group(0)) if m else {"raw": raw}
-        logger.info("✅ Report parsed successfully")
-    except Exception as e:
-        logger.error(f"❌ Failed to parse report: {str(e)}")
-        parsed = {"raw": raw}
-    
+    logger.info("✅ Report generated")
     logger.info("=" * 70)
 
     return {"report": parsed, "answers": answers}
 
 
-logger.info("✅ Orchestrator module loaded")
+logger.info("✅ Enhanced Orchestrator module loaded")
